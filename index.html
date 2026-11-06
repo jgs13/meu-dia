@@ -169,9 +169,11 @@ const blobToURL=b=>new Promise((res,rej)=>{const r=new FileReader();r.onload=()=
 let FRESH=false;try{FRESH=!localStorage.getItem(KEY)}catch(e){}
 let TM=null;try{TM=JSON.parse(localStorage.getItem('meudia.timer')||'null')}catch(e){}
 let tInt=null,AC=null,tab=0,dsel=[],S=load(),editingAlarm=null;
+const NA=native?plug('NativeAlarm'):null;
 const THEME_KEY='meudia.theme';
-function applyTheme(v){const t=['original','light','teal'].includes(v)?v:'original';if(t==='original')document.documentElement.removeAttribute('data-theme');else document.documentElement.dataset.theme=t;try{localStorage.setItem(THEME_KEY,t)}catch(e){}}
+function applyTheme(v){v=['original','light','teal'].includes(v)?v:'original';if(v==='original')document.documentElement.removeAttribute('data-theme');else document.documentElement.dataset.theme=v;try{localStorage.setItem(THEME_KEY,v)}catch(e){}}
 try{applyTheme(localStorage.getItem(THEME_KEY)||'original')}catch(e){applyTheme('original')}
+
 function load(){try{const x=JSON.parse(localStorage.getItem(KEY));if(x&&x.tasks)return x}catch(e){}return{tasks:[],bills:[],alarms:[],n:1,bk:0}}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove('show'),2800)}
@@ -192,9 +194,12 @@ function vTasks(){const L=[...S.tasks].sort((a,b)=>(a.done-b.done)||((a.d||'9')+
 function vBills(){const L=[...S.bills].sort((a,b)=>(a.paid-b.paid)||a.d.localeCompare(b.d));
  return `<div class="card"><h2>Nova conta</h2><input id="bt" placeholder="Descrição (ex.: Luz)"><div class="two"><input id="bv" type="text" inputmode="decimal" placeholder="Valor"><input id="bd" type="date"></div><input id="bc" placeholder="Categoria (casa, água, internet...)"><p class="mut sm" style="margin:0 0 4px">PDF ou comprovante (opcional)</p><input id="bf" type="file" accept=".pdf,image/*"><button class="btn" data-a="ab">Adicionar conta</button><p class="mut sm">O app avisa na véspera, às 18h, e no dia, às 8h.</p></div><div class="card">${L.length?L.map(rowB).join(''):'<p class="empty">Nenhuma conta cadastrada.</p>'}</div>`}
 function vAlarms(){
- return `<div class="card"><h2>Novo alarme</h2><input id="at_" type="time" value="07:00"><input id="al" placeholder="Nome (opcional)"><select id="as"><option value="beep">Toque padrão</option><option value="strong">Toque insistente</option></select><div class="chips">${DN.map((d,i)=>`<button class="chip${dsel.includes(i)?' on':''}" data-a="ds" data-i="${i}">${d}</button>`).join('')}</div><p class="mut sm">Sem dia marcado, toca uma vez.</p><button class="btn" data-a="aa">Adicionar alarme</button></div>`+
- (native?`<div class="card"><button class="btn s" data-a="pm">Ativar permissões de alarme</button><p class="mut sm">Se o alarme atrasar: Configurações do Android › Apps › Meu Dia › Bateria › Sem restrições.</p></div>`:`<div class="card warn"><p class="mut" style="margin:0">Os alarmes só tocam com o celular bloqueado no app APK.</p><button class="btn s" data-a="wn" style="margin-top:10px">Ativar notificações</button></div>`)+
- `<div class="card">${S.alarms.length?S.alarms.map(a=>`<div class="row"><div class="grow"><b class="tm">${pad(a.h)}:${pad(a.m)}</b><small>${esc(a.l||'Alarme')} · ${a.days.length?a.days.map(d=>DN[d]).join(' '):'uma vez'}${a.s=='strong'?' · insistente':''}${a.ringName?' · '+esc(a.ringName):''}</small></div><button class="btn s" data-a="editalarm" data-i="${a.id}">Editar</button><button class="sw${a.on?' on':''}" data-a="ta" data-i="${a.id}" aria-label="Ligar ou desligar"></button><button class="x" data-a="da" data-i="${a.id}">✕</button></div>`).join(''):'<p class="empty">Nenhum alarme ainda.</p>'}</div>`}
+ const editing=editingAlarm==null?null:S.alarms.find(x=>x.id===editingAlarm);
+ if(editing&&dsel.length===0)dsel=[...(editing.days||[])];
+ const time=editing?pad(editing.h)+':'+pad(editing.m):'07:00';
+ return `<div class="card"><h2>${editing?'Editar alarme':'Novo alarme'}</h2><input id="at_" type="time" value="${time}"><input id="al" placeholder="Nome (opcional)" value="${esc(editing?editing.l||'':'')}"><button class="btn s" data-a="pickring">Escolher toque do celular</button><button class="btn s" data-a="clearring">Toque padrão</button><p class="mut sm" id="ringLabel">${esc(window._pickedRing?.name||(editing&&editing.ringName)||'Toque padrão do Android')}</p><div class="chips">${DN.map((d,i)=>`<button class="chip${dsel.includes(i)?' on':''}" data-a="ds" data-i="${i}">${d}</button>`).join('')}</div><p class="mut sm">Sem dia marcado, toca uma vez. O alarme toca continuamente até ser parado pela notificação ou pelo aplicativo.</p><button class="btn" data-a="aa">${editing?'Salvar alterações':'Adicionar alarme'}</button>${editing?'<button class="btn s" data-a="canceledit">Cancelar edição</button>':''}</div>`+
+ (native?`<div class="card"><button class="btn s" data-a="pm">Ativar permissões de alarme</button><button class="btn s" data-a="stopring">Parar toque agora</button><p class="mut sm">Permita notificações e alarmes exatos. Para maior confiabilidade, configure a bateria do Meu Dia como “Sem restrições”.</p></div>`:`<div class="card warn"><p class="mut">O toque contínuo com a tela bloqueada exige o APK Android. No navegador, os alertas dependem das permissões e das limitações do navegador.</p></div>`)+
+ `<div class="card">${S.alarms.length?S.alarms.map(a=>`<div class="row"><div class="grow"><b class="tm">${pad(a.h)}:${pad(a.m)}</b><small>${esc(a.l||'Alarme')} · ${a.days&&a.days.length?a.days.map(d=>DN[d]).join(' '):'uma vez'}${a.ringName?' · '+esc(a.ringName):''}</small></div><button class="btn s" data-a="editalarm" data-i="${a.id}">Editar</button><button class="sw${a.on?' on':''}" data-a="ta" data-i="${a.id}" aria-label="Ligar ou desligar"></button><button class="x" data-a="da" data-i="${a.id}">✕</button></div>`).join(''):'<p class="empty">Nenhum alarme ainda.</p>'}</div>`}
 function vPerf(){
  const now=new Date(),st=new Date(now);st.setDate(now.getDate()-((now.getDay()+6)%7));const a1=iso(st),a2=iso(new Date(now.getFullYear(),now.getMonth(),1)),t0=today();
  const el=f=>S.tasks.filter(t=>t.d&&t.d>=f&&t.d<=t0),rate=a=>a.length?Math.round(a.filter(t=>t.done).length/a.length*100):0,w=el(a1),m=el(a2),days=[];
@@ -211,7 +216,7 @@ function drawT(){const d=$('#tmd');if(!d)return;const r=remain(),t=TM&&S.tasks.f
  $('#tms').disabled=!TM||TM.running||r<=0;$('#tmp').disabled=!TM||!TM.running;$('#tmr').disabled=!TM}
 function runT(){clearInterval(tInt);tInt=setInterval(()=>{if(remain()<=0)finT();else drawT()},250)}
 function stopT(){clearInterval(tInt);tInt=null}
-function finT(){if(!TM||TM.fin)return;TM.running=false;TM.rem=0;TM.endsAt=null;TM.fin=true;saveTM();stopT();drawT();beep();const NA=plug('NativeAlarm');if(native&&NA&&NA.stopRinging)NA.stopRinging()}
+function finT(){if(!TM||TM.fin)return;TM.running=false;TM.rem=0;TM.endsAt=null;TM.fin=true;saveTM();stopT();drawT();if(!native)beep()}
 function beep(){try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();if(AC.state=='suspended')AC.resume();const s=AC.currentTime;
  [0,.35,.7].forEach((o,i)=>{const os=AC.createOscillator(),g=AC.createGain();os.type='sine';os.frequency.value=i==1?880:660;g.gain.setValueAtTime(.0001,s+o);g.gain.exponentialRampToValueAtTime(.45,s+o+.025);g.gain.exponentialRampToValueAtTime(.0001,s+o+.23);os.connect(g);g.connect(AC.destination);os.start(s+o);os.stop(s+o+.25)})}catch(e){}
  try{navigator.vibrate&&navigator.vibrate([300,150,300])}catch(e){}
@@ -228,30 +233,25 @@ async function migrate(){if(!FRESH)return;const g=k=>{try{return JSON.parse(loca
  if(!o.tasks.length&&!o.bills.length&&!o.alarms.length)return;S=fromOld(o);
  for(const b of S.bills){if(b.hf&&b.oldId){try{const bl=await DB.get(b.oldId);if(bl)await DB.put('b'+b.id,bl);else b.hf=false}catch(e){b.hf=false}}delete b.oldId;delete b.fileData}
  save();toast('Dados da versão anterior importados.')}
-function vData(){return `<div class="card"><h2>Aparência</h2><p class="mut sm">Escolha como o Meu Dia será exibido. A opção fica salva neste celular.</p><select id="themeSelect"><option value="original">Tema atual (automático)</option><option value="light">Claro</option><option value="teal">Azul-petróleo</option></select></div><div class="card"><h2>Backup</h2><p class="mut">Exporte um arquivo com tudo e salve no Google Drive ou mande para você no WhatsApp. Para restaurar, instale o app e toque em Importar.</p><button class="btn" data-a="ex">Exportar backup</button><button class="btn s" data-a="im">Importar backup</button><input id="fi" type="file" accept=".json,application/json" hidden><p class="mut sm">Último backup: ${S.bk?new Date(S.bk).toLocaleDateString('pt-BR'):'nunca'}</p></div>`}
+function vData(){return `<div class="card"><h2>Aparência</h2><p class="mut sm">Escolha como o Meu Dia será exibido. A opção fica salva neste celular.</p><select id="themeSelect"><option value="original">Tema atual (automático)</option><option value="light">Claro</option><option value="teal">Azul-petróleo</option></select></div><div class="card"><h2>Toque do cronômetro</h2><p class="mut sm">Escolha o som para quando a contagem terminar.</p><button class="btn s" data-a="picktimer">Escolher toque do celular</button><button class="btn s" data-a="cleartimer">Toque padrão</button><p class="mut sm">${S.timerRingName?'Selecionado: '+esc(S.timerRingName):'Toque padrão de alarme do Android'}</p></div><div class="card"><h2>Backup</h2><p class="mut">Exporte um arquivo com tudo e salve no Google Drive ou mande para você no WhatsApp. Para restaurar, instale o app e toque em Importar.</p><button class="btn" data-a="ex">Exportar backup</button><button class="btn s" data-a="im">Importar backup</button><input id="fi" type="file" accept=".json,application/json" hidden><p class="mut sm">Último backup: ${S.bk?new Date(S.bk).toLocaleDateString('pt-BR'):'nunca'}</p></div>`}
 function render(){$('#dt').textContent=new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
  $('#tabs').innerHTML=TABS.map((t,i)=>`<button class="tab${i==tab?' on':''}" data-a="tab" data-i="${i}">${t}</button>`).join('');
  $('#main').innerHTML=[vHome,vTasks,vBills,vAlarms,vPerf,vData][tab]();const ts=$('#themeSelect');if(ts){try{ts.value=localStorage.getItem(THEME_KEY)||'original'}catch(e){ts.value='original'}}drawT()}
+function nextAlarmAt(a){const now=new Date();let d=new Date();d.setHours(a.h,a.m,0,0);if(a.days&&a.days.length){for(let k=0;k<8;k++){if(d>now&&a.days.includes(d.getDay()))return d.getTime();d.setDate(d.getDate()+1);d.setHours(a.h,a.m,0,0)}}else{if(d<=now)d.setDate(d.getDate()+1);return d.getTime()}return d.getTime()}
 async function sync(){
- const now=Date.now();S.alarms.forEach(a=>{if(!a.days.length&&a.at<=now)a.on=false});save();
+ const now=Date.now();S.alarms.forEach(a=>{if(!(a.days||[]).length&&a.on&&a.at<now-60000)a.on=false});save();
+ if(native&&NA){try{for(const a of S.alarms){if(a.on&&!(a.days||[]).length&&a.at<=now&&a.at>now-60000)continue;await NA.cancelAlarm({id:a.id});if(a.on){if(!(a.days||[]).length&&a.at<=now)continue;const at=a.days&&a.days.length?nextAlarmAt(a):a.at;await NA.scheduleAlarm({id:a.id,at,days:a.days||[],hour:a.h,minute:a.m,ringtoneUri:a.ringUri||'',label:a.l||'Alarme'})}}
+ if(TM&&TM.running&&TM.endsAt>now)await NA.scheduleTimer({at:TM.endsAt,ringtoneUri:S.timerRingUri||'',label:'Cronômetro'});else await NA.cancelTimer();
+ }catch(e){toast('Falha ao programar alarme nativo. Confira a permissão de alarmes exatos.')}}
  const LN=native&&plug('LocalNotifications');if(!LN)return;
- try{
-  await LN.createChannel({id:'meudia',name:'Alarmes e lembretes',importance:5,visibility:1,vibration:true});
-  const p=await LN.getPending();if(p.notifications.length)await LN.cancel({notifications:p.notifications.map(x=>({id:x.id}))});
-  const L=[],add=(id,title,body,sch)=>L.push({id,title,body,channelId:'meudia',schedule:Object.assign({allowWhileIdle:true},sch)});
-  S.alarms.filter(a=>a.on).forEach(a=>{const ti='⏰ '+(a.l||'Alarme'),bo=pad(a.h)+':'+pad(a.m);
-   for(let k=0;k<(a.s=='strong'?3:1);k++){const mm=a.h*60+a.m+k,hh=Math.floor(mm/60)%24,mi=mm%60,w=mm>=1440?1:0;
-    if(a.days.length)a.days.forEach(d=>add(100000+a.id*100+(d+1)*10+k,ti,bo,{on:{weekday:(d+w)%7+1,hour:hh,minute:mi}}));else add(100000+a.id*100+k,ti,bo,{at:new Date(a.at+k*6e4)})}});
-  S.tasks.filter(t=>!t.done&&t.d&&t.h).forEach(t=>{const at=new Date(t.d+'T'+t.h);if(at>now)add(200000+t.id,'Tarefa',t.t,{at})});
-  S.bills.filter(b=>!b.paid).forEach(b=>{const due=new Date(b.d+'T08:00'),pre=new Date(b.d+'T18:00');pre.setDate(pre.getDate()-1);
-   if(due>now)add(300000+b.id*2,'Conta vence hoje',b.t+' · '+brl(b.v),{at:due});if(pre>now)add(300000+b.id*2+1,'Conta vence amanhã',b.t+' · '+brl(b.v),{at:pre})});
-  if(TM&&TM.running&&TM.endsAt>now)add(400000,'⏱ Tempo encerrado','O tempo da atividade terminou.',{at:new Date(TM.endsAt)});
-  if(L.length)await LN.schedule({notifications:L});
- }catch(e){toast('Não consegui agendar os avisos. Toque em Ativar permissões na aba Alarmes.')}}
-async function perms(){const LN=native&&plug('LocalNotifications');if(!LN)return;
- try{await LN.requestPermissions()}catch(e){}
- try{const r=await LN.checkExactNotificationSetting();if(r.exact_alarm!=='granted')await LN.changeExactNotificationSetting()}catch(e){}
- sync()}
+ try{await LN.createChannel({id:'meudia',name:'Lembretes',importance:4,visibility:1,vibration:true});
+ const p=await LN.getPending();if(p.notifications.length)await LN.cancel({notifications:p.notifications.map(x=>({id:x.id}))});
+ const L=[],add=(id,title,body,sch)=>L.push({id,title,body,channelId:'meudia',schedule:Object.assign({allowWhileIdle:true},sch)});
+ S.tasks.filter(t=>!t.done&&t.d&&t.h).forEach(t=>{const at=new Date(t.d+'T'+t.h);if(at>now)add(200000+t.id,'Tarefa',t.t,{at})});
+ S.bills.filter(b=>!b.paid).forEach(b=>{const due=new Date(b.d+'T08:00'),pre=new Date(b.d+'T18:00');pre.setDate(pre.getDate()-1);if(due>now)add(300000+b.id*2,'Conta vence hoje',b.t+' · '+brl(b.v),{at:due});if(pre>now)add(300000+b.id*2+1,'Conta vence amanhã',b.t+' · '+brl(b.v),{at:pre})});
+ if(L.length)await LN.schedule({notifications:L});
+ }catch(e){toast('Não consegui agendar os lembretes.')}}
+async function perms(){const LN=native&&plug('LocalNotifications');if(LN){try{await LN.requestPermissions()}catch(e){}}if(NA){try{await NA.requestExactAlarmPermission()}catch(e){}}await sync()}
 async function exportar(){const name='meu-dia-backup-'+today()+'.json';
  try{const out=Object.assign({app:'meu-dia',version:3,exportedAt:new Date().toISOString()},S,{bills:[]});
   for(const b of S.bills){const c=Object.assign({},b);if(b.hf){try{const bl=await DB.get('b'+b.id);c.fileData=bl?await blobToURL(bl):null}catch(e){}}out.bills.push(c)}
@@ -268,6 +268,12 @@ document.addEventListener('change',e=>{if(e.target.id=='fi'){importar(e.target.f
 document.addEventListener('click',async e=>{const b=e.target.closest('[data-a]');if(!b)return;const a=b.dataset.a,i=+b.dataset.i,f=L=>L.find(x=>x.id===i);
  if(a=='tab'){tab=i;return render()}
  if(a=='ds'){dsel=dsel.includes(i)?dsel.filter(x=>x!==i):[...dsel,i];return b.classList.toggle('on')}
+ if(a==='editalarm'){editingAlarm=i;dsel=[...(f(S.alarms)?.days||[])];window._pickedRing=null;return render()}
+ if(a==='canceledit'){editingAlarm=null;dsel=[];window._pickedRing=null;return render()}
+ if(a==='pickring'||a==='picktimer'){if(!NA||!NA.chooseRingtone)return toast('A seleção de toque funciona no APK Android.');try{const cur=a==='picktimer'?(S.timerRingUri||''):(window._pickedRing?.uri||(editingAlarm!=null?f(S.alarms)?.ringUri||'':''));const r=await NA.chooseRingtone({currentUri:cur});if(r&&r.uri){if(a==='picktimer'){S.timerRingUri=r.uri;S.timerRingName=r.name||'Toque selecionado';save();render()}else{window._pickedRing={uri:r.uri,name:r.name||'Toque escolhido'};render()}}}catch(err){toast('Não foi possível abrir os toques do celular.')}return}
+ if(a==='clearring'){window._pickedRing={uri:'',name:'Toque padrão do Android'};const el=$('#ringLabel');if(el)el.textContent='Toque padrão do Android';return}
+ if(a==='cleartimer'){delete S.timerRingUri;delete S.timerRingName;save();return render()}
+ if(a==='stopring'){if(NA)try{await NA.stopRinging()}catch(e){}return toast('Comando para parar o toque enviado.')}
   if(a==='editalarm'){editingAlarm=i;dsel=[...(f(S.alarms)?.days||[])];return render()}
   if(a==='canceledit'){editingAlarm=null;dsel=[];return render()}
   if(a==='pickring'){const NA=plug('NativeAlarm');if(!native||!NA||!NA.pickRingtone)return toast('A seleção de toque do Android depende da integração nativa da nova versão.');try{const r=await NA.pickRingtone();if(r&&r.uri){window._pickedRing={uri:r.uri,name:r.name||'Toque escolhido'};const el=$('#ringLabel');if(el)el.textContent=window._pickedRing.name}}catch(e){toast('Não foi possível abrir os toques do celular.')}return}
@@ -290,10 +296,15 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-a]')
  else if(a=='pg'){const x=f(S.bills);x.paid=!x.paid}
  else if(a=='db'){S.bills=S.bills.filter(x=>x.id!==i);DB.del('b'+i).catch(()=>{})}
  else if(a=='savealarm'){const x=f(S.alarms),[h,m]=($('#at_').value||'').split(':').map(Number);if(!x||isNaN(h)||isNaN(m))return toast('Confira o horário.');x.h=h;x.m=m;x.l=$('#al').value.trim();x.s=$('#as').value;x.days=[...dsel].sort();if(window._pickedRing){x.ringUri=window._pickedRing.uri;x.ringName=window._pickedRing.name;window._pickedRing=null}const d=new Date();d.setHours(h,m,0,0);if(d<=Date.now())d.setDate(d.getDate()+1);x.at=d.getTime();editingAlarm=null;dsel=[]}
-  else if(a=='aa'){const [h,m]=($('#at_').value||'').split(':').map(Number);if(isNaN(h))return toast('Escolha o horário.');
+  else if(a=='aa'){const [h,m]=($('#at_').value||'').split(':').map(Number);if(!Number.isInteger(h)||!Number.isInteger(m))return toast('Escolha o horário.');
   const d=new Date();d.setHours(h,m,0,0);if(d<=Date.now())d.setDate(d.getDate()+1);
-  S.alarms.push({id:S.n++,h,m,l:$('#al').value.trim(),days:[...dsel].sort(),on:true,at:d.getTime(),s:$('#as').value,...(window._pickedRing?{ringUri:window._pickedRing.uri,ringName:window._pickedRing.name}:{})});window._pickedRing=null;dsel=[];perms()}
- else if(a=='ta'){const x=f(S.alarms);x.on=!x.on;if(x.on&&!x.days.length){const d=new Date();d.setHours(x.h,x.m,0,0);if(d<=Date.now())d.setDate(d.getDate()+1);x.at=d.getTime()}}
+  const old=editingAlarm==null?null:f(S.alarms);
+  const ring=window._pickedRing;
+  const data={h,m,l:$('#al').value.trim(),days:[...dsel].sort(),on:true,at:d.getTime()};
+  if(ring){data.ringUri=ring.uri;data.ringName=ring.name}else if(old){data.ringUri=old.ringUri||'';data.ringName=old.ringName||''}
+  if(old)Object.assign(old,data);else S.alarms.push(Object.assign({id:S.n++},data));
+  editingAlarm=null;dsel=[];window._pickedRing=null;await perms();toast(old?'Alarme atualizado.':'Alarme adicionado.')}
+ else if(a=='ta'){const x=f(S.alarms);x.on=!x.on;if(x.on&&!(x.days||[]).length){const d=new Date();d.setHours(x.h,x.m,0,0);if(d<=Date.now())d.setDate(d.getDate()+1);x.at=d.getTime()}}
  else if(a=='da'){S.alarms=S.alarms.filter(x=>x.id!==i);if(editingAlarm===i)editingAlarm=null}
  save();render();sync()});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden){render();sync()}});
