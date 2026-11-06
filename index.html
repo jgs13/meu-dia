@@ -169,7 +169,7 @@ const blobToURL=b=>new Promise((res,rej)=>{const r=new FileReader();r.onload=()=
 let FRESH=false;try{FRESH=!localStorage.getItem(KEY)}catch(e){}
 let TM=null;try{TM=JSON.parse(localStorage.getItem('meudia.timer')||'null')}catch(e){}
 let tInt=null,AC=null,tab=0,dsel=[],S=load(),editingAlarm=null;
-const NA=native?plug('NativeAlarm'):null;
+const getNA=()=>native?plug('NativeAlarm'):null;
 const THEME_KEY='meudia.theme';
 function applyTheme(v){v=['original','light','teal'].includes(v)?v:'original';if(v==='original')document.documentElement.removeAttribute('data-theme');else document.documentElement.dataset.theme=v;try{localStorage.setItem(THEME_KEY,v)}catch(e){}}
 try{applyTheme(localStorage.getItem(THEME_KEY)||'original')}catch(e){applyTheme('original')}
@@ -240,6 +240,7 @@ function render(){$('#dt').textContent=new Date().toLocaleDateString('pt-BR',{we
 function nextAlarmAt(a){const now=new Date();let d=new Date();d.setHours(a.h,a.m,0,0);if(a.days&&a.days.length){for(let k=0;k<8;k++){if(d>now&&a.days.includes(d.getDay()))return d.getTime();d.setDate(d.getDate()+1);d.setHours(a.h,a.m,0,0)}}else{if(d<=now)d.setDate(d.getDate()+1);return d.getTime()}return d.getTime()}
 async function sync(){
  const now=Date.now();S.alarms.forEach(a=>{if(!(a.days||[]).length&&a.on&&a.at<now-60000)a.on=false});save();
+ const NA=getNA();
  if(native&&NA){try{for(const a of S.alarms){if(a.on&&!(a.days||[]).length&&a.at<=now&&a.at>now-60000)continue;await NA.cancelAlarm({id:a.id});if(a.on){if(!(a.days||[]).length&&a.at<=now)continue;const at=a.days&&a.days.length?nextAlarmAt(a):a.at;await NA.scheduleAlarm({id:a.id,at,days:a.days||[],hour:a.h,minute:a.m,ringtoneUri:a.ringUri||'',label:a.l||'Alarme'})}}
  if(TM&&TM.running&&TM.endsAt>now)await NA.scheduleTimer({at:TM.endsAt,ringtoneUri:S.timerRingUri||'',label:'Cronômetro'});else await NA.cancelTimer();
  }catch(e){toast('Falha ao programar alarme nativo. Confira a permissão de alarmes exatos.')}}
@@ -251,7 +252,7 @@ async function sync(){
  S.bills.filter(b=>!b.paid).forEach(b=>{const due=new Date(b.d+'T08:00'),pre=new Date(b.d+'T18:00');pre.setDate(pre.getDate()-1);if(due>now)add(300000+b.id*2,'Conta vence hoje',b.t+' · '+brl(b.v),{at:due});if(pre>now)add(300000+b.id*2+1,'Conta vence amanhã',b.t+' · '+brl(b.v),{at:pre})});
  if(L.length)await LN.schedule({notifications:L});
  }catch(e){toast('Não consegui agendar os lembretes.')}}
-async function perms(){const LN=native&&plug('LocalNotifications');if(LN){try{await LN.requestPermissions()}catch(e){}}if(NA){try{await NA.requestExactAlarmPermission()}catch(e){}}await sync()}
+async function perms(){const LN=native&&plug('LocalNotifications'),NA=getNA();if(LN){try{await LN.requestPermissions()}catch(e){}}if(NA){try{await NA.requestExactAlarmPermission()}catch(e){}}await sync()}
 async function exportar(){const name='meu-dia-backup-'+today()+'.json';
  try{const out=Object.assign({app:'meu-dia',version:3,exportedAt:new Date().toISOString()},S,{bills:[]});
   for(const b of S.bills){const c=Object.assign({},b);if(b.hf){try{const bl=await DB.get('b'+b.id);c.fileData=bl?await blobToURL(bl):null}catch(e){}}out.bills.push(c)}
@@ -270,13 +271,10 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-a]')
  if(a=='ds'){dsel=dsel.includes(i)?dsel.filter(x=>x!==i):[...dsel,i];return b.classList.toggle('on')}
  if(a==='editalarm'){editingAlarm=i;dsel=[...(f(S.alarms)?.days||[])];window._pickedRing=null;return render()}
  if(a==='canceledit'){editingAlarm=null;dsel=[];window._pickedRing=null;return render()}
- if(a==='pickring'||a==='picktimer'){if(!NA||!NA.chooseRingtone)return toast('A seleção de toque funciona no APK Android.');try{const cur=a==='picktimer'?(S.timerRingUri||''):(window._pickedRing?.uri||(editingAlarm!=null?f(S.alarms)?.ringUri||'':''));const r=await NA.chooseRingtone({currentUri:cur});if(r&&r.uri){if(a==='picktimer'){S.timerRingUri=r.uri;S.timerRingName=r.name||'Toque selecionado';save();render()}else{window._pickedRing={uri:r.uri,name:r.name||'Toque escolhido'};render()}}}catch(err){toast('Não foi possível abrir os toques do celular.')}return}
+ if(a==='pickring'||a==='picktimer'){const NA=getNA();if(!native)return toast('Abra esta função na versão APK Android.');if(!NA||typeof NA.chooseRingtone!=='function')return toast('Plugin de toque ainda não carregado. Feche e abra o aplicativo novamente.');try{const cur=a==='picktimer'?(S.timerRingUri||''):(window._pickedRing?.uri||(editingAlarm!=null?f(S.alarms)?.ringUri||'':''));const r=await NA.chooseRingtone({currentUri:cur});if(r&&r.uri){if(a==='picktimer'){S.timerRingUri=r.uri;S.timerRingName=r.name||'Toque selecionado';save();render()}else{window._pickedRing={uri:r.uri,name:r.name||'Toque escolhido'};render()}}}catch(err){toast('Não foi possível abrir os toques do celular.')}return}
  if(a==='clearring'){window._pickedRing={uri:'',name:'Toque padrão do Android'};const el=$('#ringLabel');if(el)el.textContent='Toque padrão do Android';return}
  if(a==='cleartimer'){delete S.timerRingUri;delete S.timerRingName;save();return render()}
- if(a==='stopring'){if(NA)try{await NA.stopRinging()}catch(e){}return toast('Comando para parar o toque enviado.')}
-  if(a==='editalarm'){editingAlarm=i;dsel=[...(f(S.alarms)?.days||[])];return render()}
-  if(a==='canceledit'){editingAlarm=null;dsel=[];return render()}
-  if(a==='pickring'){const NA=plug('NativeAlarm');if(!native||!NA||!NA.pickRingtone)return toast('A seleção de toque do Android depende da integração nativa da nova versão.');try{const r=await NA.pickRingtone();if(r&&r.uri){window._pickedRing={uri:r.uri,name:r.name||'Toque escolhido'};const el=$('#ringLabel');if(el)el.textContent=window._pickedRing.name}}catch(e){toast('Não foi possível abrir os toques do celular.')}return}
+ if(a==='stopring'){const NA=getNA();if(NA)try{await NA.stopRinging()}catch(e){}return toast('Comando para parar o toque enviado.')}
 
  if(a=='ex')return exportar();
  if(a=='im')return $('#fi').click();
