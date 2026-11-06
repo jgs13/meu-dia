@@ -41,4 +41,20 @@ jobs:
           npx cap add android
           npx cap sync android
           R=android/app/src/main
-          sed -i 's#</manifest>#<uses-permission android:name="android.permission.POST_NOTIFICATIONS"/><uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/><uses-permission android:name="android.permission.USE_EXACT_ALARM"/><uses-permission android:name="android.permission.RECEIV
+          python3 - <<'PY'
+          p='android/app/src/main/AndroidManifest.xml'
+          s=open(p).read()
+          perms=['POST_NOTIFICATIONS','SCHEDULE_EXACT_ALARM','USE_EXACT_ALARM','RECEIVE_BOOT_COMPLETED','VIBRATE','WAKE_LOCK']
+          add=''.join('<uses-permission android:name="android.permission.%s"/>'%x for x in perms)
+          open(p,'w').write(s.replace('</manifest>',add+'</manifest>'))
+          PY
+          rm -rf $R/res/mipmap-anydpi-v26
+          for d in mdpi hdpi xhdpi xxhdpi xxxhdpi; do cp icon-192.png $R/res/mipmap-$d/ic_launcher.png; cp icon-192.png $R/res/mipmap-$d/ic_launcher_round.png; done
+          sed -i "s/versionCode 1/versionCode ${{ github.run_number }}/" android/app/build.gradle
+      - name: Compilar
+        run: cd android && ./gradlew assembleDebug --no-daemon
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-${{ github.run_number }}
+          name: Meu Dia (versão ${{ github.run_number }})
+          files: android/app/build/outputs/apk/debug/app-debug.apk
