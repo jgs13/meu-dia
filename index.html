@@ -53,7 +53,8 @@ input,select{width:100%;padding:13px;margin:0 0 10px;border:1px solid var(--line
 </style></head><body>
 <header><small id="dt"></small><h1>Olá, Jardel!</h1><p>O que temos para fazer hoje?</p></header>
 <nav id="tabs"></nav><main id="main"></main><div id="toast"></div>
-<script>
+<script type="module">
+import { registerPlugin } from './capacitor-core/dist/index.js';
 const V=[
 ["Posso todas as coisas em Cristo que me fortalece.","Filipenses 4:13"],
 ["O Senhor é o meu pastor; nada me faltará.","Salmos 23:1"],
@@ -169,7 +170,8 @@ const blobToURL=b=>new Promise((res,rej)=>{const r=new FileReader();r.onload=()=
 let FRESH=false;try{FRESH=!localStorage.getItem(KEY)}catch(e){}
 let TM=null;try{TM=JSON.parse(localStorage.getItem('meudia.timer')||'null')}catch(e){}
 let tInt=null,AC=null,tab=0,dsel=[],S=load(),editingAlarm=null;
-const getNA=()=>native?plug('NativeAlarm'):null;
+const NativeAlarmPlugin=native?registerPlugin('NativeAlarm'):null;
+const getNA=()=>NativeAlarmPlugin;
 const THEME_KEY='meudia.theme';
 function applyTheme(v){v=['original','light','teal'].includes(v)?v:'original';if(v==='original')document.documentElement.removeAttribute('data-theme');else document.documentElement.dataset.theme=v;try{localStorage.setItem(THEME_KEY,v)}catch(e){}}
 try{applyTheme(localStorage.getItem(THEME_KEY)||'original')}catch(e){applyTheme('original')}
