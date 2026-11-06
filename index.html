@@ -6,7 +6,11 @@
 <title>Meu Dia</title>
 <style>
 :root{--bg:#f3f5f8;--ink:#14213a;--mut:#5d6b82;--pri:#1f4e79;--hd:#172c48;--ok:#2e7d4f;--bad:#b3261e;--line:#e3e8ef;--card:#fff}
-@media(prefers-color-scheme:dark){:root{--bg:#0e1624;--ink:#e8edf5;--mut:#9aa8bd;--pri:#5b9bd5;--line:#26334a;--card:#16233a}}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]):not([data-theme="teal"]){--bg:#0e1624;--ink:#e8edf5;--mut:#9aa8bd;--pri:#5b9bd5;--line:#26334a;--card:#16233a}}
+:root[data-theme="light"]{--bg:#f5f7fb;--ink:#17243a;--mut:#65738a;--pri:#2563a6;--hd:#e7eef8;--ok:#287a50;--bad:#b3261e;--line:#dce4ef;--card:#fff}
+:root[data-theme="light"] header{color:#17243a}
+:root[data-theme="teal"]{--bg:#0e2225;--ink:#e3f2ef;--mut:#9ab9b5;--pri:#168b83;--hd:#123b3d;--ok:#42a879;--bad:#ff7770;--line:#285052;--card:#173437}
+:root[data-theme="teal"] .bars div{background:#279b91}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 system-ui,Roboto,sans-serif;padding-bottom:40px}
 header{background:var(--hd);color:#fff;padding:calc(env(safe-area-inset-top) + 20px) 20px 22px}
@@ -165,6 +169,9 @@ const blobToURL=b=>new Promise((res,rej)=>{const r=new FileReader();r.onload=()=
 let FRESH=false;try{FRESH=!localStorage.getItem(KEY)}catch(e){}
 let TM=null;try{TM=JSON.parse(localStorage.getItem('meudia.timer')||'null')}catch(e){}
 let tInt=null,AC=null,tab=0,dsel=[],S=load();
+const THEME_KEY='meudia.theme';
+function applyTheme(v){const t=['original','light','teal'].includes(v)?v:'original';if(t==='original')document.documentElement.removeAttribute('data-theme');else document.documentElement.dataset.theme=t;try{localStorage.setItem(THEME_KEY,t)}catch(e){}}
+try{applyTheme(localStorage.getItem(THEME_KEY)||'original')}catch(e){applyTheme('original')}
 function load(){try{const x=JSON.parse(localStorage.getItem(KEY));if(x&&x.tasks)return x}catch(e){}return{tasks:[],bills:[],alarms:[],n:1,bk:0}}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove('show'),2800)}
@@ -221,10 +228,10 @@ async function migrate(){if(!FRESH)return;const g=k=>{try{return JSON.parse(loca
  if(!o.tasks.length&&!o.bills.length&&!o.alarms.length)return;S=fromOld(o);
  for(const b of S.bills){if(b.hf&&b.oldId){try{const bl=await DB.get(b.oldId);if(bl)await DB.put('b'+b.id,bl);else b.hf=false}catch(e){b.hf=false}}delete b.oldId;delete b.fileData}
  save();toast('Dados da versão anterior importados.')}
-function vData(){return `<div class="card"><h2>Backup</h2><p class="mut">Exporte um arquivo com tudo e salve no Google Drive ou mande para você no WhatsApp. Para restaurar, instale o app e toque em Importar.</p><button class="btn" data-a="ex">Exportar backup</button><button class="btn s" data-a="im">Importar backup</button><input id="fi" type="file" accept=".json,application/json" hidden><p class="mut sm">Último backup: ${S.bk?new Date(S.bk).toLocaleDateString('pt-BR'):'nunca'}</p></div>`}
+function vData(){return `<div class="card"><h2>Aparência</h2><p class="mut sm">Escolha como o Meu Dia será exibido. A opção fica salva neste celular.</p><select id="themeSelect"><option value="original">Tema atual (automático)</option><option value="light">Claro</option><option value="teal">Azul-petróleo</option></select></div><div class="card"><h2>Backup</h2><p class="mut">Exporte um arquivo com tudo e salve no Google Drive ou mande para você no WhatsApp. Para restaurar, instale o app e toque em Importar.</p><button class="btn" data-a="ex">Exportar backup</button><button class="btn s" data-a="im">Importar backup</button><input id="fi" type="file" accept=".json,application/json" hidden><p class="mut sm">Último backup: ${S.bk?new Date(S.bk).toLocaleDateString('pt-BR'):'nunca'}</p></div>`}
 function render(){$('#dt').textContent=new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
  $('#tabs').innerHTML=TABS.map((t,i)=>`<button class="tab${i==tab?' on':''}" data-a="tab" data-i="${i}">${t}</button>`).join('');
- $('#main').innerHTML=[vHome,vTasks,vBills,vAlarms,vPerf,vData][tab]();drawT()}
+ $('#main').innerHTML=[vHome,vTasks,vBills,vAlarms,vPerf,vData][tab]();const ts=$('#themeSelect');if(ts){try{ts.value=localStorage.getItem(THEME_KEY)||'original'}catch(e){ts.value='original'}}drawT()}
 async function sync(){
  const now=Date.now();S.alarms.forEach(a=>{if(!a.days.length&&a.at<=now)a.on=false});save();
  const LN=native&&plug('LocalNotifications');if(!LN)return;
@@ -257,7 +264,7 @@ function importar(f){if(!f)return;const r=new FileReader();r.onload=async()=>{tr
  if(!confirm('Substituir os dados atuais pelo backup?'))return;
  for(const b of x.bills){if(b.fileData){const bl=await (await fetch(b.fileData)).blob();await DB.put('b'+b.id,bl);b.hf=true;delete b.fileData}delete b.oldId}
  S=Object.assign({n:1,bk:0},x);S.tasks.forEach(t=>{t.dur=t.dur||0;t.rep=t.rep||'none'});save();render();sync();toast('Backup restaurado.')}catch(e){toast('Arquivo de backup inválido.')}};r.readAsText(f)}
-document.addEventListener('change',e=>{if(e.target.id=='fi'){importar(e.target.files[0]);e.target.value=''}});
+document.addEventListener('change',e=>{if(e.target.id=='fi'){importar(e.target.files[0]);e.target.value=''}if(e.target.id==='themeSelect'){applyTheme(e.target.value);toast('Tema atualizado.')}});
 document.addEventListener('click',async e=>{const b=e.target.closest('[data-a]');if(!b)return;const a=b.dataset.a,i=+b.dataset.i,f=L=>L.find(x=>x.id===i);
  if(a=='tab'){tab=i;return render()}
  if(a=='ds'){dsel=dsel.includes(i)?dsel.filter(x=>x!==i):[...dsel,i];return b.classList.toggle('on')}
