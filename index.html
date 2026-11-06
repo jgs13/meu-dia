@@ -1,211 +1,291 @@
 <!doctype html>
-<html lang="pt-BR">
-<head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#172c48"><link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="icon-192.png">
-<title>Meu Dia — Assistente Pessoal</title>
+<html lang="pt-BR"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#172c48">
+<link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="icon-192.png">
+<title>Meu Dia</title>
 <style>
-:root{--bg:#f3f5f8;--card:#fff;--ink:#172334;--muted:#697789;--accent:#24486d;--line:#e4e9ef;--good:#168451;--warn:#b7791f;--bad:#c0392b}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px system-ui,-apple-system,Segoe UI,sans-serif}
-header{background:#172c48;color:#fff;padding:22px max(18px,calc((100% - 1050px)/2));}
-header .small{color:#c6d5e6;font-size:12px;text-transform:uppercase;letter-spacing:.08em}h1{margin:4px 0;font-size:28px}header p{margin:0;color:#d7e2ef}
-main{max-width:1050px;margin:18px auto;padding:0 14px 40px}
-nav{display:flex;gap:8px;overflow:auto;padding:4px 0 14px}nav button{white-space:nowrap;border:1px solid var(--line);background:var(--card);padding:10px 14px;border-radius:12px;color:var(--ink);font-weight:650}
-nav button.active{background:var(--accent);color:#fff;border-color:var(--accent)}
-.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:0 3px 12px #182c4410;margin-bottom:14px}
-h2{font-size:18px;margin:0 0 12px}.muted{color:var(--muted);font-size:13px}.stat{font-size:30px;font-weight:750}.row{display:flex;gap:10px;align-items:center;justify-content:space-between}.stack{display:grid;gap:9px}
-input,select,textarea{width:100%;padding:11px;border:1px solid #ccd5df;border-radius:10px;background:#fff;color:#172334;font:inherit}label{font-size:13px;color:var(--muted);display:grid;gap:5px}
-form{display:grid;gap:10px}.fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-button.primary{background:var(--accent);color:#fff;border:0;border-radius:10px;padding:11px 14px;font-weight:700}button.secondary{background:#edf2f7;color:#23364a;border:1px solid var(--line);border-radius:10px;padding:9px 12px}
-button.danger{color:var(--bad);background:#fff1ef;border:1px solid #f4d0ca;border-radius:9px;padding:7px 10px}
-.item{border-top:1px solid var(--line);padding:11px 0;display:flex;gap:10px;align-items:center}.item:first-child{border-top:0}.item .grow{flex:1;min-width:0}.item.done .grow strong{text-decoration:line-through;color:var(--muted)}
-.pill{font-size:11px;padding:4px 8px;border-radius:99px;background:#edf2f7;color:#40536a}.pill.good{background:#e6f5ed;color:var(--good)}.pill.warn{background:#fff4df;color:var(--warn)}.pill.bad{background:#ffebe8;color:var(--bad)}
-.progress{height:9px;border-radius:99px;background:#e9edf2;overflow:hidden}.progress span{display:block;height:100%;background:#168451}
-.quote{font-size:18px;line-height:1.45;font-weight:650}.hidden{display:none!important}.empty{padding:18px;text-align:center;color:var(--muted)}
-small{color:var(--muted)}.bar{height:130px;display:flex;align-items:end;gap:8px;padding:12px 0 0}.bar div{flex:1;background:#8da9c5;border-radius:7px 7px 0 0;min-height:4px;position:relative}.bar span{position:absolute;bottom:-22px;left:0;right:0;text-align:center;font-size:11px;color:var(--muted)}
-footer{text-align:center;color:var(--muted);font-size:12px;padding:16px}
-@media(max-width:650px){.grid,.fields{grid-template-columns:1fr}.stat{font-size:26px}header{padding:18px}}
-</style></head>
-<body>
-<header><div class="small" id="today"></div><h1>Olá, Jardel!</h1><p>O que temos para fazer hoje?</p></header>
-<main>
-<nav id="nav">
-<button class="active" data-tab="inicio">Visão geral</button><button data-tab="tarefas">Tarefas</button><button data-tab="contas">Contas</button><button data-tab="alarmes">Alarmes</button><button data-tab="desempenho">Desempenho</button>
-</nav>
-<section id="inicio">
-<div class="grid">
-<div class="card"><div class="muted">Tarefas pendentes hoje</div><div class="stat" id="pendingCount">0</div><div class="muted">Organize seu dia sem esquecer.</div></div>
-<div class="card"><div class="muted">Contas em aberto</div><div class="stat" id="openBills">R$ 0,00</div><div class="muted">Total cadastrado e ainda não pago.</div></div>
-</div>
-<div class="card"><div class="row"><h2>Checklist de hoje</h2><button class="secondary" onclick="tab('tarefas')">Ver tarefas</button></div><div id="todayTasks"></div></div>
-<div class="card"><h2>Próximas contas</h2><div id="nextBills"></div></div>
-<div class="card"><h2>Versículo do dia</h2><div class="quote" id="verse"></div><div class="muted" id="reference" style="margin-top:8px"></div><small>Tradução/versículo em formato curto para reflexão diária.</small></div>
-</section>
-<section id="tarefas" class="hidden">
-<div class="card"><h2>Adicionar tarefa</h2><form id="taskForm"><div class="fields"><label>O que precisa fazer?<input name="title" required placeholder="Ex.: Tirar o lixo"></label><label>Data<input name="date" type="date" required></label><label>Horário (opcional)<input name="time" type="time"></label><label>Tempo estimado (minutos, opcional)<input name="duration" type="number" min="1" max="1440" placeholder="Ex.: 25"></label><label>Repetir<select name="repeat"><option value="none">Não repetir</option><option value="daily">Todos os dias</option><option value="weekly">Toda semana</option></select></label></div><button class="primary">Adicionar tarefa</button></form></div>
-<div class="card"><h2>Minhas tarefas</h2><div id="taskList"></div></div>
-<div class="card" id="timerCard"><div class="row"><h2>Cronômetro da tarefa</h2><span class="pill good">Com alerta sonoro</span></div><div id="timerDisplay" style="font-size:48px;font-weight:800;text-align:center;font-variant-numeric:tabular-nums;padding:12px 0">00:00</div><div id="timerTaskName" class="muted" style="text-align:center;margin-bottom:12px">Escolha uma tarefa com tempo definido.</div><div class="row" style="justify-content:center;flex-wrap:wrap"><button class="primary" id="timerStart">Iniciar</button><button class="secondary" id="timerPause">Pausar</button><button class="secondary" id="timerReset">Reiniciar</button></div><p class="muted" style="margin-top:12px">O cronômetro acompanha a tarefa escolhida. Ao terminar, toca um alerta enquanto a página estiver ativa. Para maior confiabilidade com o aplicativo fechado, será necessário o app Android nativo.</p></div>
-</section>
-<section id="contas" class="hidden">
-<div class="card"><h2>Cadastrar conta</h2><form id="billForm"><div class="fields"><label>Nome da conta<input name="title" required placeholder="Ex.: Energia"></label><label>Valor (R$)<input name="amount" type="number" min="0" step=".01" required placeholder="0,00"></label><label>Vencimento<input name="due" type="date" required></label><label>Categoria<input name="category" placeholder="Casa, água, internet..."></label><label style="grid-column:1/-1">PDF ou comprovante<input name="file" type="file" accept=".pdf,image/*"></label></div><button class="primary">Salvar conta</button></form><small>Os anexos ficam guardados neste navegador/dispositivo. Faça backup dos arquivos importantes.</small></div>
-<div class="card"><h2>Contas cadastradas</h2><div id="billList"></div></div>
-</section>
-<section id="alarmes" class="hidden">
-<div class="card"><h2>Novo alarme</h2><form id="alarmForm"><div class="fields"><label>Nome do alarme<input name="title" required placeholder="Ex.: Lembrar de tirar o lixo"></label><label>Horário<input name="time" type="time" required></label><label>Repetição<select name="repeat"><option value="once">Uma vez (hoje)</option><option value="daily">Todos os dias</option><option value="weekdays">Dias úteis</option><option value="weekly">Toda semana</option></select></label><label>Som<select name="sound"><option value="beep">Toque padrão</option><option value="strong">Toque insistente</option></select></label></div><button class="primary">Adicionar alarme</button></form><p class="muted">Importante: alarmes web dependem do navegador e da página aberta. O navegador pode suspender alarmes em segundo plano; não substituem o despertador nativo do Android.</p><button class="secondary" onclick="enableNotifications()">Ativar permissões de notificação</button></div>
-<div class="card"><h2>Meus alarmes</h2><div id="alarmList"></div></div>
-</section>
-<section id="desempenho" class="hidden">
-<div class="grid"><div class="card"><div class="muted">Eficiência nesta semana</div><div class="stat" id="weekRate">0%</div><div class="progress"><span id="weekBar" style="width:0%"></span></div></div><div class="card"><div class="muted">Eficiência neste mês</div><div class="stat" id="monthRate">0%</div><div class="progress"><span id="monthBar" style="width:0%"></span></div></div></div>
-<div class="card"><h2>Últimos 7 dias</h2><div class="bar" id="weekChart"></div><p class="muted">Eficiência = tarefas concluídas ÷ tarefas cadastradas para o período. Tarefas futuras não entram no cálculo.</p></div>
-<div class="card"><h2>Resumo</h2><div id="summary"></div></div>
-<div class="card"><h2>Backup dos dados</h2><p class="muted">Salve um arquivo com tarefas, contas, alarmes e anexos. Guarde no Drive ou envie para você mesmo.</p><div class="row" style="justify-content:flex-start;flex-wrap:wrap"><button class="primary" onclick="exportData()">Exportar backup</button><button class="secondary" onclick="$('#importFile').click()">Importar backup</button><input type="file" id="importFile" accept="application/json,.json" class="hidden"></div></div>
-</section>
-<footer>Meu Dia • Seus dados ficam neste dispositivo nesta primeira versão.</footer>
-</main>
+:root{--bg:#f3f5f8;--ink:#14213a;--mut:#5d6b82;--pri:#1f4e79;--hd:#172c48;--ok:#2e7d4f;--bad:#b3261e;--line:#e3e8ef;--card:#fff}
+@media(prefers-color-scheme:dark){:root{--bg:#0e1624;--ink:#e8edf5;--mut:#9aa8bd;--pri:#5b9bd5;--line:#26334a;--card:#16233a}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 system-ui,Roboto,sans-serif;padding-bottom:40px}
+header{background:var(--hd);color:#fff;padding:calc(env(safe-area-inset-top) + 20px) 20px 22px}
+header small{letter-spacing:.08em;text-transform:uppercase;opacity:.8;font-size:13px}
+header h1{margin:4px 0;font-size:32px}header p{margin:0;font-size:18px;opacity:.9}
+#tabs{display:flex;gap:10px;overflow-x:auto;padding:16px 16px 8px}
+.tab{flex:none;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:16px;padding:12px 18px;font:600 16px system-ui}
+.tab.on{background:var(--pri);color:#fff;border-color:var(--pri)}
+#main{padding:8px 16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:18px;margin-bottom:14px}
+.card.warn{border-color:#d9a400}
+h2{margin:0 0 10px;font-size:20px}.big{font-size:34px;font-weight:700;margin:2px 0}
+.mut{color:var(--mut)}.sm{font-size:14px}.empty{color:var(--mut);text-align:center;padding:14px 0;margin:0}
+.verse{font-size:21px;font-weight:600;margin:6px 0}
+.hrow{display:flex;justify-content:space-between;align-items:center;gap:8px}
+input,select{width:100%;padding:13px;margin:0 0 10px;border:1px solid var(--line);border-radius:12px;background:var(--bg);color:var(--ink);font:16px system-ui}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.btn{background:var(--pri);color:#fff;border:0;border-radius:12px;padding:13px 18px;font:600 16px system-ui;margin:4px 6px 4px 0}
+.btn.s{background:var(--line);color:var(--ink);padding:9px 14px}
+.row{display:flex;align-items:center;gap:12px;padding:11px 0;border-top:1px solid var(--line)}
+.row:first-of-type{border-top:0}.grow{flex:1;min-width:0}.grow small{display:block;color:var(--mut)}
+.chk{width:34px;height:34px;border-radius:50%;border:2px solid var(--mut);background:none;color:transparent;font-size:18px}
+.chk.on{background:var(--ok);border-color:var(--ok);color:#fff}
+.x{border:0;background:none;color:var(--mut);font-size:20px;padding:6px}
+.late b{color:var(--bad)}.paid b{text-decoration:line-through;color:var(--mut)}
+.tm{font-size:28px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.chip{border:1px solid var(--line);background:none;color:var(--ink);border-radius:20px;padding:8px 12px;font:15px system-ui}
+.chip.on{background:var(--pri);color:#fff;border-color:var(--pri)}
+.sw{width:52px;height:30px;border-radius:15px;border:0;background:var(--line);position:relative}
+.sw:after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;transition:left .15s}
+.sw.on{background:var(--ok)}.sw.on:after{left:25px}
+#toast{position:fixed;left:50%;bottom:30px;transform:translateX(-50%);background:#172c48;color:#fff;padding:12px 18px;border-radius:12px;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90%}
+#toast.show{opacity:1}
+.prog{height:9px;border-radius:99px;background:var(--line);overflow:hidden;margin-top:8px}.prog span{display:block;height:100%;background:var(--ok)}
+.bars{height:130px;display:flex;align-items:flex-end;gap:8px;padding-top:12px;margin-bottom:28px}.bars div{flex:1;background:#8da9c5;border-radius:7px 7px 0 0;min-height:4px;position:relative}.bars span{position:absolute;bottom:-22px;left:0;right:0;text-align:center;font-size:12px;color:var(--mut)}
+.pill{font-size:12px;padding:4px 9px;border-radius:99px;background:var(--line);color:var(--mut);white-space:nowrap}.pill.good{background:#e6f5ed;color:var(--ok)}.pill.bad{background:#ffebe8;color:var(--bad)}.pill.warn{background:#fff4df;color:#b7791f}
+.timer{font-size:48px;font-weight:800;text-align:center;font-variant-numeric:tabular-nums;padding:10px 0}
+.btn:disabled{opacity:.45}.sum{display:flex;justify-content:space-between;padding:10px 0;border-top:1px solid var(--line)}.sum:first-of-type{border-top:0}
+</style></head><body>
+<header><small id="dt"></small><h1>Olá, Jardel!</h1><p>O que temos para fazer hoje?</p></header>
+<nav id="tabs"></nav><main id="main"></main><div id="toast"></div>
 <script>
-const $=s=>document.querySelector(s), today=()=>new Date().toLocaleDateString('en-CA');
-const load=k=>{try{return JSON.parse(localStorage.getItem(k)||'[]')}catch(e){return []}}, save=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));return true}catch(e){alert('Não foi possível salvar: armazenamento cheio.');return false}};
-const DB={open(){return this._p||(this._p=new Promise((res,rej)=>{const r=indexedDB.open('meudia',1);r.onupgradeneeded=()=>r.result.createObjectStore('files');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}))},
-async put(k,v){const db=await this.open();return new Promise((res,rej)=>{const tx=db.transaction('files','readwrite');tx.objectStore('files').put(v,k);tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error)})},
-async get(k){const db=await this.open();return new Promise((res,rej)=>{const r=db.transaction('files').objectStore('files').get(k);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})},
-async del(k){const db=await this.open();return new Promise((res,rej)=>{const tx=db.transaction('files','readwrite');tx.objectStore('files').delete(k);tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error)})}};
-const blobToURL=b=>new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(b)});
-let tasks=load('md_tasks'), bills=load('md_bills'), alarms=load('md_alarms');
-const money=n=>Number(n||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
-const dateBR=s=>s?new Date(s+'T12:00:00').toLocaleDateString('pt-BR'):'';
-const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
-$('#today').textContent=new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
-const verses=[
-['“O Senhor é o meu pastor; nada me faltará.”','Salmos 23:1'],
-['“Tudo posso naquele que me fortalece.”','Filipenses 4:13'],
-['“Confia no Senhor de todo o teu coração.”','Provérbios 3:5'],
-['“Entrega o teu caminho ao Senhor; confia nele, e ele tudo fará.”','Salmos 37:5'],
-['“Não temas, porque eu sou contigo.”','Isaías 41:10'],
-['“O Senhor é a minha luz e a minha salvação; a quem temerei?”','Salmos 27:1'],
-['“Buscai primeiro o Reino de Deus.”','Mateus 6:33']
+const V=[
+["Posso todas as coisas em Cristo que me fortalece.","Filipenses 4:13"],
+["O Senhor é o meu pastor; nada me faltará.","Salmos 23:1"],
+["Esforça-te, e tem bom ânimo; o Senhor teu Deus é contigo por onde quer que andares.","Josué 1:9"],
+["Confia no Senhor de todo o teu coração, e não te estribes no teu próprio entendimento.","Provérbios 3:5"],
+["Não temas, porque eu sou contigo; eu te fortaleço, e te ajudo, e te sustento.","Isaías 41:10"],
+["Deus é o nosso refúgio e fortaleza, socorro bem presente na angústia.","Salmos 46:1"],
+["Buscai primeiro o reino de Deus, e a sua justiça, e todas essas coisas vos serão acrescentadas.","Mateus 6:33"],
+["Todas as coisas contribuem juntamente para o bem daqueles que amam a Deus.","Romanos 8:28"],
+["Eu bem sei os pensamentos que tenho a vosso respeito, diz o Senhor; pensamentos de paz, e não de mal.","Jeremias 29:11"],
+["O meu socorro vem do Senhor, que fez o céu e a terra.","Salmos 121:2"],
+["Os que esperam no Senhor renovarão as forças, subirão com asas como águias.","Isaías 40:31"],
+["O Senhor é a minha luz e a minha salvação; a quem temerei?","Salmos 27:1"],
+["Vinde a mim, todos os que estais cansados e oprimidos, e eu vos aliviarei.","Mateus 11:28"],
+["Porque Deus amou o mundo de tal maneira que deu o seu Filho unigênito.","João 3:16"],
+["Entrega o teu caminho ao Senhor; confia nele, e ele o fará.","Salmos 37:5"],
+["Entrega ao Senhor as tuas obras, e os teus pensamentos serão estabelecidos.","Provérbios 16:3"],
+["Não estejais inquietos por coisa alguma; antes as vossas petições sejam conhecidas diante de Deus pela oração.","Filipenses 4:6"],
+["Lançando sobre ele toda a vossa ansiedade, porque ele tem cuidado de vós.","1 Pedro 5:7"],
+["Provai, e vede que o Senhor é bom; bem-aventurado o homem que nele confia.","Salmos 34:8"],
+["Lâmpada para os meus pés é tua palavra, e luz para o meu caminho.","Salmos 119:105"],
+["Alegrai-vos na esperança, sede pacientes na tribulação, perseverai na oração.","Romanos 12:12"],
+["Não nos cansemos de fazer o bem, porque a seu tempo ceifaremos, se não desfalecermos.","Gálatas 6:9"],
+["Deus não nos deu o espírito de temor, mas de fortaleza, e de amor, e de moderação.","2 Timóteo 1:7"],
+["Direi do Senhor: Ele é o meu Deus, o meu refúgio, a minha fortaleza, e nele confiarei.","Salmos 91:2"],
+["Tudo quanto fizerdes, fazei-o de coração, como ao Senhor, e não aos homens.","Colossenses 3:23"],
+["Guarda o teu coração, porque dele procedem as saídas da vida.","Provérbios 4:23"],
+["Deleita-te no Senhor, e ele te concederá os desejos do teu coração.","Salmos 37:4"],
+["As misericórdias do Senhor não têm fim; renovam-se cada manhã. Grande é a tua fidelidade.","Lamentações 3:22-23"],
+["Este é o dia que fez o Senhor; regozijemo-nos e alegremo-nos nele.","Salmos 118:24"],
+["Assim resplandeça a vossa luz diante dos homens, para que vejam as vossas boas obras.","Mateus 5:16"],
+["Deixo-vos a paz, a minha paz vos dou; não se turbe o vosso coração, nem se atemorize.","João 14:27"],
+["No mundo tereis aflições, mas tende bom ânimo, eu venci o mundo.","João 16:33"],
+["O Deus de esperança vos encha de todo o gozo e paz em crença.","Romanos 15:13"],
+["Lança o teu cuidado sobre o Senhor, e ele te susterá.","Salmos 55:22"],
+["Torre forte é o nome do Senhor; o justo corre para ele, e fica em alto retiro.","Provérbios 18:10"],
+["Tenho posto o Senhor continuamente diante de mim; nunca vacilarei.","Salmos 16:8"],
+["Eu e a minha casa serviremos ao Senhor.","Josué 24:15"],
+["Tudo tem o seu tempo determinado, e há tempo para todo o propósito debaixo do céu.","Eclesiastes 3:1"],
+["Fortalecei-vos no Senhor e na força do seu poder.","Efésios 6:10"],
+["Instruir-te-ei, e ensinar-te-ei o caminho que deves seguir.","Salmos 32:8"],
+["A fé é o firme fundamento das coisas que se esperam, e a prova das coisas que se não veem.","Hebreus 11:1"],
+["Se algum de vós tem falta de sabedoria, peça-a a Deus, que a todos dá liberalmente.","Tiago 1:5"],
+["Reconhece-o em todos os teus caminhos, e ele endireitará as tuas veredas.","Provérbios 3:6"],
+["O Senhor é a minha força e o meu escudo; nele confiou o meu coração, e fui ajudado.","Salmos 28:7"],
+["Pedi, e dar-se-vos-á; buscai, e encontrareis; batei, e abrir-se-vos-á.","Mateus 7:7"],
+["Tu conservarás em paz aquele cuja imaginação está firme em ti.","Isaías 26:3"],
+["O Senhor é bom, uma fortaleza no dia da angústia, e conhece os que confiam nele.","Naum 1:7"],
+["Deus é a fortaleza do meu coração, e a minha porção para sempre.","Salmos 73:26"],
+["A minha graça te basta, porque o meu poder se aperfeiçoa na fraqueza.","2 Coríntios 12:9"],
+["Todas as vossas coisas sejam feitas com amor.","1 Coríntios 16:14"],
+["O choro pode durar uma noite, mas a alegria vem pela manhã.","Salmos 30:5"],
+["A resposta branda desvia o furor, mas a palavra dura suscita a ira.","Provérbios 15:1"],
+["Como o ferro com o ferro se afia, assim o homem afia o rosto do seu amigo.","Provérbios 27:17"],
+["Oh! Quão bom e quão suave é que os irmãos vivam em união!","Salmos 133:1"],
+["Eis que eu estou convosco todos os dias, até à consumação dos séculos.","Mateus 28:20"],
+["Esforçai-vos e tende bom ânimo; o Senhor teu Deus vai contigo; não te deixará nem te desamparará.","Deuteronômio 31:6"],
+["Só em Deus espera silenciosa a minha alma; dele vem a minha salvação.","Salmos 62:1"],
+["Se Deus é por nós, quem será contra nós?","Romanos 8:31"],
+["Em paz me deitarei e dormirei, porque só tu, Senhor, me fazes habitar em segurança.","Salmos 4:8"],
+["Não vos inquieteis pelo dia de amanhã, porque o dia de amanhã cuidará de si mesmo.","Mateus 6:34"],
+["Ensina-nos a contar os nossos dias, de tal maneira que alcancemos corações sábios.","Salmos 90:12"],
+["Os pensamentos do diligente tendem só à abundância.","Provérbios 21:5"],
+["Sede uns para com os outros benignos, misericordiosos, perdoando-vos uns aos outros.","Efésios 4:32"],
+["Nós o amamos a ele porque ele nos amou primeiro.","1 João 4:19"],
+["Entrai pelas suas portas com ação de graças, e nos seus átrios com louvor.","Salmos 100:4"],
+["Estai sempre alegres. Orai sem cessar. Em tudo dai graças.","1 Tessalonicenses 5:16-18"],
+["O coração do homem propõe o seu caminho, mas o Senhor lhe dirige os passos.","Provérbios 16:9"],
+["Bendize, ó minha alma, ao Senhor, e não te esqueças de nenhum dos seus benefícios.","Salmos 103:2"],
+["Se tu podes crer, tudo é possível ao que crê.","Marcos 9:23"],
+["Para Deus nada é impossível.","Lucas 1:37"],
+["O coração alegre serve de bom remédio.","Provérbios 17:22"],
+["Faze-me saber os teus caminhos, ó Senhor; ensina-me as tuas veredas.","Salmos 25:4"],
+["Eu sou a luz do mundo; quem me segue não andará em trevas, mas terá a luz da vida.","João 8:12"],
+["Sem mim nada podeis fazer.","João 15:5"],
+["Jesus Cristo é o mesmo ontem, e hoje, e eternamente.","Hebreus 13:8"],
+["Grandes coisas fez o Senhor por nós, e por isso estamos alegres.","Salmos 126:3"],
+["A bênção do Senhor é que enriquece, e ele não acrescenta dores com ela.","Provérbios 10:22"],
+["Que o Senhor pede de ti, senão que pratiques a justiça, e ames a benignidade, e andes humildemente com o teu Deus?","Miqueias 6:8"],
+["Louvai ao Senhor, porque ele é bom, porque a sua benignidade dura para sempre.","1 Crônicas 16:34"],
+["Perto está o Senhor de todos os que o invocam.","Salmos 145:18"],
+["Tu, Senhor, nunca desamparaste os que te buscam.","Salmos 9:10"],
+["Muitos propósitos há no coração do homem, mas o conselho do Senhor permanecerá.","Provérbios 19:21"],
+["Não por força nem por poder, mas pelo meu Espírito, diz o Senhor dos Exércitos.","Zacarias 4:6"],
+["Faze-me saber o caminho que devo seguir, pois a ti levanto a minha alma.","Salmos 143:8"],
+["Pela graça sois salvos, por meio da fé; e isto não vem de vós, é dom de Deus.","Efésios 2:8"],
+["Bem-aventurados os pacificadores, porque eles serão chamados filhos de Deus.","Mateus 5:9"],
+["Cria em mim, ó Deus, um coração puro, e renova em mim um espírito reto.","Salmos 51:10"],
+["A alma generosa engordará, e o que regar também será regado.","Provérbios 11:25"],
+["Andamos por fé, e não por vista.","2 Coríntios 5:7"],
+["Sede firmes e constantes, sempre abundantes na obra do Senhor; o vosso trabalho não é vão no Senhor.","1 Coríntios 15:58"],
+["O Senhor Deus é sol e escudo; o Senhor dará graça e glória.","Salmos 84:11"],
+["Aquele que anda com os sábios será sábio.","Provérbios 13:20"],
+["Eu te louvarei, porque de um modo assombroso e tão maravilhoso fui feito.","Salmos 139:14"],
+["Chegai-vos a Deus, e ele se chegará a vós.","Tiago 4:8"],
+["O Senhor é o meu rochedo, e o meu lugar forte, e o meu libertador.","Salmos 18:2"],
+["Em qualquer tempo que eu temer, confiarei em ti.","Salmos 56:3"],
+["Bem-aventurados os limpos de coração, porque eles verão a Deus.","Mateus 5:8"],
+["O meu Deus suprirá todas as vossas necessidades, segundo as suas riquezas em glória.","Filipenses 4:19"],
+["Aquele que em vós começou a boa obra a aperfeiçoará até ao dia de Jesus Cristo.","Filipenses 1:6"]
 ];
-let day=Math.floor(Date.now()/86400000);$('#verse').textContent=verses[day%verses.length][0];$('#reference').textContent=verses[day%verses.length][1];
-function tab(name){document.querySelectorAll('main section').forEach(s=>s.classList.add('hidden'));$('#'+name).classList.remove('hidden');document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));render()}
-window.tab=tab;$('#nav').addEventListener('click',e=>{let b=e.target.closest('button[data-tab]');if(b)tab(b.dataset.tab)});
-function taskRow(t){return `<div class="item ${t.done?'done':''}"><input style="width:auto" type="checkbox" ${t.done?'checked':''} onchange="toggleTask('${t.id}',this.checked)"><div class="grow"><strong>${esc(t.title)}</strong><div class="muted">${dateBR(t.date)} ${t.time||''} ${t.duration?'• '+t.duration+' min':''} ${t.repeat!=='none'?'• recorrente':''}</div></div>${t.duration?`<button class="secondary" onclick="selectTimer('${t.id}')">Cronometrar</button>`:''}<button class="danger" onclick="delTask('${t.id}')">Excluir</button></div>`}
-function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-const nextDate=(d,r)=>{let x=new Date(d+'T12:00:00'),step=r==='daily'?1:7;do{x.setDate(x.getDate()+step)}while(x.toLocaleDateString('en-CA')<=today());return x.toLocaleDateString('en-CA')};
-window.toggleTask=(id,v)=>{let spawn=null;tasks=tasks.map(t=>{if(t.id!==id)return t;let n={...t,done:v,doneAt:v?today():null};if(v&&t.repeat&&t.repeat!=='none'&&!t.spawned){n.spawned=true;spawn={id:uid(),title:t.title,date:nextDate(t.date,t.repeat),time:t.time,duration:t.duration,repeat:t.repeat,done:false}}return n});if(spawn)tasks.push(spawn);save('md_tasks',tasks);render()};
-window.delTask=id=>{if(!confirm('Excluir esta tarefa?'))return;tasks=tasks.filter(t=>t.id!==id);save('md_tasks',tasks);render()};
-$('#taskForm').date.value=today();
-$('#taskForm').onsubmit=e=>{e.preventDefault();let f=new FormData(e.target);let t={id:uid(),title:f.get('title'),date:f.get('date'),time:f.get('time'),duration:Number(f.get('duration'))||0,repeat:f.get('repeat'),done:false};tasks.push(t);save('md_tasks',tasks);e.target.reset();e.target.date.value=today();render()};
-function billRow(b){let overdue=!b.paid&&b.due<today();return `<div class="item"><div class="grow"><strong>${esc(b.title)}</strong><div class="muted">${dateBR(b.due)} • ${money(b.amount)} ${b.category?'• '+esc(b.category):''}</div>${b.fileName?`<small>Anexo: ${esc(b.fileName)}</small>`:''}</div><span class="pill ${b.paid?'good':overdue?'bad':'warn'}">${b.paid?'Paga':overdue?'Atrasada':'Em aberto'}</span><div class="stack"><button class="secondary" onclick="payBill('${b.id}')">${b.paid?'Reabrir':'Pagar'}</button>${b.hasFile?`<button class="secondary" onclick="downloadBill('${b.id}')">Anexo</button>`:''}<button class="danger" onclick="delBill('${b.id}')">Excluir</button></div></div>`}
-$('#billForm').onsubmit=async e=>{e.preventDefault();let f=new FormData(e.target),file=f.get('file'),id=uid(),hasFile=false;if(file&&file.size){if(file.size>8*1024*1024){alert('Arquivo acima de 8 MB. Escolha um arquivo menor.');return}try{await DB.put(id,file);hasFile=true}catch(err){alert('Não foi possível guardar o anexo neste dispositivo.');return}}bills.push({id,title:f.get('title'),amount:Number(f.get('amount')),due:f.get('due'),category:f.get('category'),paid:false,fileName:hasFile?file.name:'',hasFile});save('md_bills',bills);e.target.reset();render()};
-window.payBill=id=>{bills=bills.map(b=>b.id===id?{...b,paid:!b.paid}:b);save('md_bills',bills);render()};
-window.delBill=id=>{if(!confirm('Excluir esta conta?'))return;bills=bills.filter(b=>b.id!==id);save('md_bills',bills);DB.del(id).catch(()=>{});render()};
-window.downloadBill=async id=>{let b=bills.find(x=>x.id===id);try{let blob=await DB.get(id);if(!blob){alert('Anexo não encontrado.');return}let u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=b.fileName||'comprovante';a.click();setTimeout(()=>URL.revokeObjectURL(u),10000)}catch(err){alert('Não foi possível abrir o anexo.')}};
-$('#alarmForm').onsubmit=e=>{e.preventDefault();let f=new FormData(e.target);alarms.push({id:uid(),title:f.get('title'),time:f.get('time'),repeat:f.get('repeat'),sound:f.get('sound'),enabled:true,last:'',created:today()});save('md_alarms',alarms);e.target.reset();render()};
-window.toggleAlarm=id=>{alarms=alarms.map(a=>a.id===id?{...a,enabled:!a.enabled}:a);save('md_alarms',alarms);render()};
-window.delAlarm=id=>{if(!confirm('Excluir este alarme?'))return;alarms=alarms.filter(a=>a.id!==id);save('md_alarms',alarms);render()};
-async function enableNotifications(){if(!('Notification'in window)){alert('Este navegador não oferece notificações.');return}let p=await Notification.requestPermission();alert(p==='granted'?'Notificações autorizadas. Mantenha o aplicativo aberto para verificar alarmes.':'Permissão não concedida.')}
-window.enableNotifications=enableNotifications;
-function alarmCheck(){let now=new Date(),d=today(),hm=now.toTimeString().slice(0,5),dow=now.getDay();alarms.forEach(a=>{let valid=a.repeat==='daily'||(a.repeat==='weekdays'&&dow>=1&&dow<=5)||(a.repeat==='weekly'&&dow===new Date((a.created||d)+'T12:00:00').getDay())||a.repeat==='once';if(a.enabled&&a.time===hm&&valid&&a.last!==d){a.last=d;if(a.repeat==='once')a.enabled=false;save('md_alarms',alarms);render();if('Notification'in window&&Notification.permission==='granted')new Notification('Meu Dia: '+a.title,{body:'Está na hora da sua tarefa!',tag:a.id});else alert('ALARME: '+a.title)}})}
-setInterval(alarmCheck,15000);
-function render(){
-let dueTasks=tasks.filter(t=>t.date===today()&&!t.done);$('#pendingCount').textContent=dueTasks.length;
-$('#openBills').textContent=money(bills.filter(b=>!b.paid).reduce((s,b)=>s+b.amount,0));
-$('#todayTasks').innerHTML=dueTasks.length?dueTasks.map(taskRow).join(''):'<div class="empty">Nenhuma tarefa pendente para hoje.</div>';
-let upcoming=bills.filter(b=>!b.paid).sort((a,b)=>a.due.localeCompare(b.due)).slice(0,5);$('#nextBills').innerHTML=upcoming.length?upcoming.map(billRow).join(''):'<div class="empty">Nenhuma conta em aberto.</div>';
-$('#taskList').innerHTML=tasks.length?tasks.slice().sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time)).map(taskRow).join(''):'<div class="empty">Adicione sua primeira tarefa.</div>';
-$('#billList').innerHTML=bills.length?bills.slice().sort((a,b)=>a.due.localeCompare(b.due)).map(billRow).join(''):'<div class="empty">Nenhuma conta cadastrada.</div>';
-$('#alarmList').innerHTML=alarms.length?alarms.map(a=>`<div class="item"><div class="grow"><strong>${esc(a.time)} — ${esc(a.title)}</strong><div class="muted">${({once:'Uma vez',daily:'Todos os dias',weekdays:'Dias úteis',weekly:'Semanal'})[a.repeat]} • ${a.sound==='strong'?'Toque insistente':'Toque padrão'}</div></div><span class="pill ${a.enabled?'good':''}">${a.enabled?'Ativo':'Pausado'}</span><button class="secondary" onclick="toggleAlarm('${a.id}')">${a.enabled?'Pausar':'Ativar'}</button><button class="danger" onclick="delAlarm('${a.id}')">Excluir</button></div>`).join(''):'<div class="empty">Nenhum alarme cadastrado.</div>';
-metrics();
-}
-function metrics(){let now=new Date(),start=new Date(now);start.setDate(now.getDate()-((now.getDay()+6)%7));start.setHours(0,0,0,0);let month=new Date(now.getFullYear(),now.getMonth(),1);
-const eligible=(from)=>tasks.filter(t=>new Date(t.date+'T12:00:00')>=from&&new Date(t.date+'T12:00:00')<=now);
-let w=eligible(start),m=eligible(month),rate=a=>a.length?Math.round(a.filter(t=>t.done).length/a.length*100):0;
-$('#weekRate').textContent=rate(w)+'%';$('#weekBar').style.width=rate(w)+'%';$('#monthRate').textContent=rate(m)+'%';$('#monthBar').style.width=rate(m)+'%';
-let days=[];for(let i=6;i>=0;i--){let d=new Date();d.setDate(d.getDate()-i);let key=d.toLocaleDateString('en-CA');let a=tasks.filter(t=>t.date===key),r=rate(a);days.push({label:['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'][d.getDay()],r,n:a.length})}
-$('#weekChart').innerHTML=days.map(x=>`<div style="height:${Math.max(4,x.r)}%" title="${x.r}%"><span>${x.label}</span></div>`).join('');
-$('#summary').innerHTML=`<div class="item"><div class="grow">Tarefas concluídas neste mês</div><strong>${m.filter(t=>t.done).length}</strong></div><div class="item"><div class="grow">Tarefas atrasadas e pendentes</div><strong>${tasks.filter(t=>!t.done&&t.date<today()).length}</strong></div><div class="item"><div class="grow">Contas pagas</div><strong>${bills.filter(b=>b.paid).length}</strong></div>`}
-// Cronômetro vinculado às tarefas com duração opcional.
-let timerState = JSON.parse(localStorage.getItem('md_timer') || 'null');
-let timerInterval = null;
-let audioContext = null;
-function saveTimer(){localStorage.setItem('md_timer',JSON.stringify(timerState));}
-function selectedTimerTask(){return timerState ? tasks.find(t=>t.id===timerState.taskId) : null;}
-function timerRemaining(){
-  if(!timerState) return 0;
-  if(timerState.running) return Math.max(0, timerState.endsAt-Date.now());
-  return Math.max(0, timerState.remainingMs||0);
-}
-function formatTimer(ms){let s=Math.ceil(ms/1000),m=Math.floor(s/60),r=s%60;return String(m).padStart(2,'0')+':'+String(r).padStart(2,'0')}
-function drawTimer(){
-  let remain=timerRemaining(), task=selectedTimerTask();
-  $('#timerDisplay').textContent=formatTimer(remain);
-  $('#timerTaskName').textContent=task ? task.title+(task.duration?' • '+task.duration+' minutos':'') : 'Escolha uma tarefa com tempo definido.';
-  $('#timerStart').disabled=!timerState||timerState.running||remain<=0;
-  $('#timerPause').disabled=!timerState||!timerState.running;
-  $('#timerReset').disabled=!timerState;
-}
-function selectTimer(id){
-  let t=tasks.find(x=>x.id===id); if(!t||!t.duration)return;
-  if(timerInterval){clearInterval(timerInterval);timerInterval=null}
-  timerState={taskId:id,remainingMs:t.duration*60000,running:false,endsAt:null,finished:false};
-  saveTimer();drawTimer();document.getElementById('timerCard').scrollIntoView({behavior:'smooth',block:'center'});
-}
-window.selectTimer=selectTimer;
-function timerBeep(){
-  try{
-    audioContext=audioContext||new (window.AudioContext||window.webkitAudioContext)();
-    if(audioContext.state==='suspended')audioContext.resume();
-    let start=audioContext.currentTime;
-    [0,0.35,0.7].forEach((offset,i)=>{
-      let osc=audioContext.createOscillator(),gain=audioContext.createGain();
-      osc.type='sine';osc.frequency.value=i===1?880:660;
-      gain.gain.setValueAtTime(0.0001,start+offset);
-      gain.gain.exponentialRampToValueAtTime(0.45,start+offset+0.025);
-      gain.gain.exponentialRampToValueAtTime(0.0001,start+offset+0.23);
-      osc.connect(gain);gain.connect(audioContext.destination);
-      osc.start(start+offset);osc.stop(start+offset+0.25);
-    });
-  }catch(e){}
-  if('Notification'in window&&Notification.permission==='granted')new Notification('Meu Dia — tempo encerrado',{body:'O tempo da atividade terminou.'});
-}
-function finishTimer(){
-  if(!timerState||timerState.finished)return;
-  timerState.running=false;timerState.remainingMs=0;timerState.endsAt=null;timerState.finished=true;saveTimer();drawTimer();timerBeep();
-  if(timerInterval){clearInterval(timerInterval);timerInterval=null}
-}
-$('#timerStart').addEventListener('click',()=>{
-  if(!timerState||timerState.running||timerRemaining()<=0)return;
-  timerState.running=true;timerState.finished=false;timerState.endsAt=Date.now()+timerState.remainingMs;saveTimer();
-  if(timerInterval)clearInterval(timerInterval);
-  timerInterval=setInterval(()=>{if(timerRemaining()<=0)finishTimer();else drawTimer()},250);drawTimer();
-});
-$('#timerPause').addEventListener('click',()=>{
-  if(!timerState||!timerState.running)return;
-  timerState.remainingMs=timerRemaining();timerState.running=false;timerState.endsAt=null;saveTimer();
-  if(timerInterval){clearInterval(timerInterval);timerInterval=null}drawTimer();
-});
-$('#timerReset').addEventListener('click',()=>{
-  if(!timerState)return;let t=selectedTimerTask();
-  timerState.remainingMs=(t?.duration||0)*60000;timerState.running=false;timerState.endsAt=null;timerState.finished=false;saveTimer();
-  if(timerInterval){clearInterval(timerInterval);timerInterval=null}drawTimer();
-});
-if(timerState&&timerState.running){
-  if(timerRemaining()<=0)finishTimer();
-  else timerInterval=setInterval(()=>{if(timerRemaining()<=0)finishTimer();else drawTimer()},250);
-}
-drawTimer();
-
-window.exportData=async()=>{try{let out=bills.map(b=>({...b}));for(let b of out){if(b.hasFile){let blob=await DB.get(b.id);b.fileData=blob?await blobToURL(blob):null}}
-let data={app:'meu-dia',version:2,exportedAt:new Date().toISOString(),tasks,bills:out,alarms};
-let u=URL.createObjectURL(new Blob([JSON.stringify(data)],{type:'application/json'})),a=document.createElement('a');a.href=u;a.download='meu-dia-backup-'+today()+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(u),10000)}catch(err){alert('Não foi possível exportar o backup.')}};
-$('#importFile').addEventListener('change',async e=>{let file=e.target.files[0];e.target.value='';if(!file)return;try{let d=JSON.parse(await file.text());if(d.app!=='meu-dia'||!Array.isArray(d.tasks)||!Array.isArray(d.bills)||!Array.isArray(d.alarms))throw 0;
-if(!confirm('Importar vai substituir os dados atuais deste aparelho. Continuar?'))return;
-for(let b of d.bills){if(b.fileData){let blob=await (await fetch(b.fileData)).blob();await DB.put(b.id,blob);b.hasFile=true}delete b.fileData}
-tasks=d.tasks;bills=d.bills;alarms=d.alarms;save('md_tasks',tasks);save('md_bills',bills);save('md_alarms',alarms);render();alert('Backup importado com sucesso.')}catch(err){alert('Arquivo de backup inválido.')}});
-// Migração: anexos antigos (base64 no localStorage) -> IndexedDB; alarmes sem data de criação
-(async()=>{let changed=false;for(let b of bills){if(b.fileData){try{let blob=await (await fetch(b.fileData)).blob();await DB.put(b.id,blob);b.hasFile=true;delete b.fileData;changed=true}catch(e){}}}
-if(changed){save('md_bills',bills);render()}})();
-if(alarms.some(a=>!a.created)){alarms.forEach(a=>{if(!a.created)a.created=today()});save('md_alarms',alarms)}
-if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
-render();
-if('serviceWorker'in navigator && location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});
+const $=s=>document.querySelector(s),KEY='meudia.v2',DN=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'],TABS=['Visão geral','Tarefas','Contas','Alarmes','Desempenho','Dados'];
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad=n=>String(n).padStart(2,'0'),iso=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()),today=()=>iso(new Date());
+const fmtD=s=>s?s.split('-').reverse().join('/'):'',brl=v=>v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const native=!!(window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform());
+const plug=n=>{const C=window.Capacitor;try{return C&&((C.Plugins&&C.Plugins[n])||(C.registerPlugin&&C.registerPlugin(n)))}catch(e){}};
+const DB={open(){return this._p||(this._p=new Promise((res,rej)=>{const r=indexedDB.open('meudia',1);r.onupgradeneeded=()=>r.result.createObjectStore('files');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}))},
+put(k,v){return this.open().then(db=>new Promise((res,rej)=>{const tx=db.transaction('files','readwrite');tx.objectStore('files').put(v,k);tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error)}))},
+get(k){return this.open().then(db=>new Promise((res,rej)=>{const r=db.transaction('files').objectStore('files').get(k);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}))},
+del(k){return this.open().then(db=>new Promise((res,rej)=>{const tx=db.transaction('files','readwrite');tx.objectStore('files').delete(k);tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error)}))}};
+const blobToURL=b=>new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(b)});
+let FRESH=false;try{FRESH=!localStorage.getItem(KEY)}catch(e){}
+let TM=null;try{TM=JSON.parse(localStorage.getItem('meudia.timer')||'null')}catch(e){}
+let tInt=null,AC=null,tab=0,dsel=[],S=load();
+function load(){try{const x=JSON.parse(localStorage.getItem(KEY));if(x&&x.tasks)return x}catch(e){}return{tasks:[],bills:[],alarms:[],n:1,bk:0}}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove('show'),2800)}
+const rowT=x=>`<div class="row"><button class="chk${x.done?' on':''}" data-a="tg" data-i="${x.id}">✓</button><div class="grow"><b>${esc(x.t)}</b><small>${fmtD(x.d)} ${x.h||''}${x.dur?' · '+x.dur+' min':''}${x.rep&&x.rep!='none'?' · recorrente':''}</small></div>${x.dur?`<button class="btn s" data-a="tm" data-i="${x.id}">Cronometrar</button>`:''}<button class="x" data-a="dt" data-i="${x.id}">✕</button></div>`;
+const rowB=b=>`<div class="row ${b.paid?'paid':b.d<today()?'late':''}"><button class="chk${b.paid?' on':''}" data-a="pg" data-i="${b.id}">✓</button><div class="grow"><b>${esc(b.t)}</b><small>${brl(b.v)} · vence ${fmtD(b.d)}${b.cat?' · '+esc(b.cat):''}</small>${b.fn?`<small>Anexo: ${esc(b.fn)}</small>`:''}</div><span class="pill ${b.paid?'good':b.d<today()?'bad':'warn'}">${b.paid?'Paga':b.d<today()?'Atrasada':'Em aberto'}</span>${b.hf?`<button class="x" data-a="dl" data-i="${b.id}" title="Abrir anexo">📎</button>`:''}<button class="x" data-a="db" data-i="${b.id}">✕</button></div>`;
+function vHome(){
+ const t=today(),pend=S.tasks.filter(x=>!x.done&&(!x.d||x.d<=t)),open=S.bills.filter(b=>!b.paid),tot=open.reduce((a,b)=>a+b.v,0),
+ nb=[...open].sort((a,b)=>a.d.localeCompare(b.d)).slice(0,3),n=new Date(),v=V[Math.floor(Date.UTC(n.getFullYear(),n.getMonth(),n.getDate())/864e5)%V.length],
+ old=S.tasks.length+S.bills.length+S.alarms.length>0&&Date.now()-S.bk>6048e5;
+ return (old?`<div class="card warn"><h2>Faça um backup</h2><p class="mut">Seus dados ficam só neste celular. Exporte uma cópia.</p><button class="btn" data-a="tab" data-i="5">Ir para Dados</button></div>`:'')+
+ `<div class="card"><span class="mut">Tarefas pendentes hoje</span><div class="big">${pend.length}</div><span class="mut">Organize seu dia sem esquecer.</span></div>
+ <div class="card"><span class="mut">Contas em aberto</span><div class="big">${brl(tot)}</div><span class="mut">Total cadastrado e ainda não pago.</span></div>
+ <div class="card"><div class="hrow"><h2>Checklist de hoje</h2><button class="btn s" data-a="tab" data-i="1">Ver tarefas</button></div>${pend.length?pend.slice(0,6).map(rowT).join(''):'<p class="empty">Nenhuma tarefa pendente para hoje.</p>'}</div>
+ <div class="card"><h2>Próximas contas</h2>${nb.length?nb.map(rowB).join(''):'<p class="empty">Nenhuma conta em aberto.</p>'}</div>
+ <div class="card"><h2>Versículo do dia</h2><p class="verse">“${v[0]}”</p><span class="mut">${v[1]}</span></div>`}
+function vTasks(){const L=[...S.tasks].sort((a,b)=>(a.done-b.done)||((a.d||'9')+(a.h||'')).localeCompare((b.d||'9')+(b.h||'')));
+ return `<div class="card"><h2>Nova tarefa</h2><input id="tt" placeholder="O que precisa fazer?"><div class="two"><input id="td" type="date"><input id="th" type="time"></div><div class="two"><input id="tdu" type="number" min="1" max="1440" placeholder="Minutos (opcional)"><select id="trp"><option value="none">Não repetir</option><option value="daily">Todo dia</option><option value="weekly">Toda semana</option></select></div><button class="btn" data-a="at">Adicionar tarefa</button><p class="mut sm">Com data e hora, o app avisa no horário.</p></div><div class="card">${L.length?L.map(rowT).join(''):'<p class="empty">Nenhuma tarefa ainda.</p>'}</div><div class="card" id="tmc"><div class="hrow"><h2>Cronômetro da tarefa</h2><span class="pill good">Com alerta</span></div><div class="timer" id="tmd">00:00</div><p class="mut" id="tmn" style="text-align:center;margin:0 0 10px">Escolha uma tarefa com tempo definido.</p><div style="text-align:center"><button class="btn" id="tms" data-a="ts">Iniciar</button><button class="btn s" id="tmp" data-a="tp">Pausar</button><button class="btn s" id="tmr" data-a="tr">Reiniciar</button></div><p class="mut sm">Toque em Cronometrar numa tarefa com minutos definidos. No app, o aviso toca mesmo com o celular bloqueado.</p></div>`}
+function vBills(){const L=[...S.bills].sort((a,b)=>(a.paid-b.paid)||a.d.localeCompare(b.d));
+ return `<div class="card"><h2>Nova conta</h2><input id="bt" placeholder="Descrição (ex.: Luz)"><div class="two"><input id="bv" type="text" inputmode="decimal" placeholder="Valor"><input id="bd" type="date"></div><input id="bc" placeholder="Categoria (casa, água, internet...)"><p class="mut sm" style="margin:0 0 4px">PDF ou comprovante (opcional)</p><input id="bf" type="file" accept=".pdf,image/*"><button class="btn" data-a="ab">Adicionar conta</button><p class="mut sm">O app avisa na véspera, às 18h, e no dia, às 8h.</p></div><div class="card">${L.length?L.map(rowB).join(''):'<p class="empty">Nenhuma conta cadastrada.</p>'}</div>`}
+function vAlarms(){
+ return `<div class="card"><h2>Novo alarme</h2><input id="at_" type="time" value="07:00"><input id="al" placeholder="Nome (opcional)"><select id="as"><option value="beep">Toque padrão</option><option value="strong">Toque insistente</option></select><div class="chips">${DN.map((d,i)=>`<button class="chip${dsel.includes(i)?' on':''}" data-a="ds" data-i="${i}">${d}</button>`).join('')}</div><p class="mut sm">Sem dia marcado, toca uma vez.</p><button class="btn" data-a="aa">Adicionar alarme</button></div>`+
+ (native?`<div class="card"><button class="btn s" data-a="pm">Ativar permissões de alarme</button><p class="mut sm">Se o alarme atrasar: Configurações do Android › Apps › Meu Dia › Bateria › Sem restrições.</p></div>`:`<div class="card warn"><p class="mut" style="margin:0">Os alarmes só tocam com o celular bloqueado no app APK.</p><button class="btn s" data-a="wn" style="margin-top:10px">Ativar notificações</button></div>`)+
+ `<div class="card">${S.alarms.length?S.alarms.map(a=>`<div class="row"><div class="grow"><b class="tm">${pad(a.h)}:${pad(a.m)}</b><small>${esc(a.l||'Alarme')} · ${a.days.length?a.days.map(d=>DN[d]).join(' '):'uma vez'}${a.s=='strong'?' · insistente':''}</small></div><button class="sw${a.on?' on':''}" data-a="ta" data-i="${a.id}" aria-label="Ligar ou desligar"></button><button class="x" data-a="da" data-i="${a.id}">✕</button></div>`).join(''):'<p class="empty">Nenhum alarme ainda.</p>'}</div>`}
+function vPerf(){
+ const now=new Date(),st=new Date(now);st.setDate(now.getDate()-((now.getDay()+6)%7));const a1=iso(st),a2=iso(new Date(now.getFullYear(),now.getMonth(),1)),t0=today();
+ const el=f=>S.tasks.filter(t=>t.d&&t.d>=f&&t.d<=t0),rate=a=>a.length?Math.round(a.filter(t=>t.done).length/a.length*100):0,w=el(a1),m=el(a2),days=[];
+ for(let i=6;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);days.push([DN[d.getDay()],rate(S.tasks.filter(t=>t.d===iso(d)))])}
+ return `<div class="card"><span class="mut">Eficiência nesta semana</span><div class="big">${rate(w)}%</div><div class="prog"><span style="width:${rate(w)}%"></span></div></div>
+ <div class="card"><span class="mut">Eficiência neste mês</span><div class="big">${rate(m)}%</div><div class="prog"><span style="width:${rate(m)}%"></span></div></div>
+ <div class="card"><h2>Últimos 7 dias</h2><div class="bars">${days.map(x=>`<div style="height:${Math.max(4,x[1])}%" title="${x[1]}%"><span>${x[0]}</span></div>`).join('')}</div><p class="mut sm" style="margin:0">Eficiência = tarefas concluídas ÷ tarefas cadastradas para o período. Tarefas futuras não entram no cálculo.</p></div>
+ <div class="card"><h2>Resumo</h2><div class="sum"><span>Tarefas concluídas neste mês</span><b>${m.filter(t=>t.done).length}</b></div><div class="sum"><span>Tarefas atrasadas e pendentes</span><b>${S.tasks.filter(t=>!t.done&&t.d&&t.d<t0).length}</b></div><div class="sum"><span>Contas pagas</span><b>${S.bills.filter(b=>b.paid).length}</b></div></div>`}
+const nextD=(d,r)=>{const x=new Date((d||today())+'T12:00:00'),s=r=='daily'?1:7;do{x.setDate(x.getDate()+s)}while(iso(x)<=today());return iso(x)};
+const remain=()=>!TM?0:TM.running?Math.max(0,TM.endsAt-Date.now()):Math.max(0,TM.rem||0);
+const saveTM=()=>{try{localStorage.setItem('meudia.timer',JSON.stringify(TM))}catch(e){}};
+function drawT(){const d=$('#tmd');if(!d)return;const r=remain(),t=TM&&S.tasks.find(x=>x.id===TM.id),s=Math.ceil(r/1000);
+ d.textContent=pad(Math.floor(s/60))+':'+pad(s%60);$('#tmn').textContent=t?t.t+(t.dur?' · '+t.dur+' minutos':''):'Escolha uma tarefa com tempo definido.';
+ $('#tms').disabled=!TM||TM.running||r<=0;$('#tmp').disabled=!TM||!TM.running;$('#tmr').disabled=!TM}
+function runT(){clearInterval(tInt);tInt=setInterval(()=>{if(remain()<=0)finT();else drawT()},250)}
+function stopT(){clearInterval(tInt);tInt=null}
+function finT(){if(!TM||TM.fin)return;TM.running=false;TM.rem=0;TM.endsAt=null;TM.fin=true;saveTM();stopT();drawT();beep()}
+function beep(){try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();if(AC.state=='suspended')AC.resume();const s=AC.currentTime;
+ [0,.35,.7].forEach((o,i)=>{const os=AC.createOscillator(),g=AC.createGain();os.type='sine';os.frequency.value=i==1?880:660;g.gain.setValueAtTime(.0001,s+o);g.gain.exponentialRampToValueAtTime(.45,s+o+.025);g.gain.exponentialRampToValueAtTime(.0001,s+o+.23);os.connect(g);g.connect(AC.destination);os.start(s+o);os.stop(s+o+.25)})}catch(e){}
+ try{navigator.vibrate&&navigator.vibrate([300,150,300])}catch(e){}
+ if(!native&&'Notification'in window&&Notification.permission=='granted')new Notification('Meu Dia — tempo encerrado',{body:'O tempo da atividade terminou.'})}
+async function abrirAnexo(id){const b=S.bills.find(x=>x.id===id);try{const bl=await DB.get('b'+id);if(!bl)return toast('Anexo não encontrado.');
+ if(native){const FS=plug('Filesystem'),SH=plug('Share'),name=(b&&b.fn)||('anexo-'+id),du=await blobToURL(bl);await FS.writeFile({path:name,data:du.split(',')[1],directory:'CACHE'});const u=await FS.getUri({path:name,directory:'CACHE'});await SH.share({title:name,files:[u.uri]})}
+ else{const a=document.createElement('a');a.href=URL.createObjectURL(bl);a.download=(b&&b.fn)||'anexo';a.click()}}catch(e){toast('Não foi possível abrir o anexo.')}}
+function fromOld(o){let n=1;const wd=s=>new Date((s||today())+'T12:00:00').getDay();
+ const tasks=(o.tasks||[]).map(t=>({id:n++,t:t.title,d:t.date,h:t.time||'',dur:t.duration||0,rep:t.repeat||'none',done:!!t.done}));
+ const bills=(o.bills||[]).map(b=>({id:n++,t:b.title,v:Number(b.amount)||0,d:b.due,cat:b.category||'',paid:!!b.paid,fn:b.fileName||'',hf:!!(b.hasFile||b.fileData),fileData:b.fileData,oldId:b.id}));
+ const alarms=(o.alarms||[]).map(a=>{const [h,m]=String(a.time||'0:0').split(':').map(Number),days=a.repeat=='daily'?[0,1,2,3,4,5,6]:a.repeat=='weekdays'?[1,2,3,4,5]:a.repeat=='weekly'?[wd(a.created)]:[],d=new Date();d.setHours(h,m,0,0);if(d<=Date.now())d.setDate(d.getDate()+1);return{id:n++,h,m,l:a.title||'',days,on:!!a.enabled,at:d.getTime(),s:a.sound=='strong'?'strong':'beep'}});
+ return{tasks,bills,alarms,n,bk:0}}
+async function migrate(){if(!FRESH)return;const g=k=>{try{return JSON.parse(localStorage.getItem(k)||'[]')}catch(e){return[]}},o={tasks:g('md_tasks'),bills:g('md_bills'),alarms:g('md_alarms')};
+ if(!o.tasks.length&&!o.bills.length&&!o.alarms.length)return;S=fromOld(o);
+ for(const b of S.bills){if(b.hf&&b.oldId){try{const bl=await DB.get(b.oldId);if(bl)await DB.put('b'+b.id,bl);else b.hf=false}catch(e){b.hf=false}}delete b.oldId;delete b.fileData}
+ save();toast('Dados da versão anterior importados.')}
+function vData(){return `<div class="card"><h2>Backup</h2><p class="mut">Exporte um arquivo com tudo e salve no Google Drive ou mande para você no WhatsApp. Para restaurar, instale o app e toque em Importar.</p><button class="btn" data-a="ex">Exportar backup</button><button class="btn s" data-a="im">Importar backup</button><input id="fi" type="file" accept=".json,application/json" hidden><p class="mut sm">Último backup: ${S.bk?new Date(S.bk).toLocaleDateString('pt-BR'):'nunca'}</p></div>`}
+function render(){$('#dt').textContent=new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
+ $('#tabs').innerHTML=TABS.map((t,i)=>`<button class="tab${i==tab?' on':''}" data-a="tab" data-i="${i}">${t}</button>`).join('');
+ $('#main').innerHTML=[vHome,vTasks,vBills,vAlarms,vPerf,vData][tab]();drawT()}
+async function sync(){
+ const now=Date.now();S.alarms.forEach(a=>{if(!a.days.length&&a.at<=now)a.on=false});save();
+ const LN=native&&plug('LocalNotifications');if(!LN)return;
+ try{
+  await LN.createChannel({id:'meudia',name:'Alarmes e lembretes',importance:5,visibility:1,vibration:true});
+  const p=await LN.getPending();if(p.notifications.length)await LN.cancel({notifications:p.notifications.map(x=>({id:x.id}))});
+  const L=[],add=(id,title,body,sch)=>L.push({id,title,body,channelId:'meudia',schedule:Object.assign({allowWhileIdle:true},sch)});
+  S.alarms.filter(a=>a.on).forEach(a=>{const ti='⏰ '+(a.l||'Alarme'),bo=pad(a.h)+':'+pad(a.m);
+   for(let k=0;k<(a.s=='strong'?3:1);k++){const mm=a.h*60+a.m+k,hh=Math.floor(mm/60)%24,mi=mm%60,w=mm>=1440?1:0;
+    if(a.days.length)a.days.forEach(d=>add(100000+a.id*100+(d+1)*10+k,ti,bo,{on:{weekday:(d+w)%7+1,hour:hh,minute:mi}}));else add(100000+a.id*100+k,ti,bo,{at:new Date(a.at+k*6e4)})}});
+  S.tasks.filter(t=>!t.done&&t.d&&t.h).forEach(t=>{const at=new Date(t.d+'T'+t.h);if(at>now)add(200000+t.id,'Tarefa',t.t,{at})});
+  S.bills.filter(b=>!b.paid).forEach(b=>{const due=new Date(b.d+'T08:00'),pre=new Date(b.d+'T18:00');pre.setDate(pre.getDate()-1);
+   if(due>now)add(300000+b.id*2,'Conta vence hoje',b.t+' · '+brl(b.v),{at:due});if(pre>now)add(300000+b.id*2+1,'Conta vence amanhã',b.t+' · '+brl(b.v),{at:pre})});
+  if(TM&&TM.running&&TM.endsAt>now)add(400000,'⏱ Tempo encerrado','O tempo da atividade terminou.',{at:new Date(TM.endsAt)});
+  if(L.length)await LN.schedule({notifications:L});
+ }catch(e){toast('Não consegui agendar os avisos. Toque em Ativar permissões na aba Alarmes.')}}
+async function perms(){const LN=native&&plug('LocalNotifications');if(!LN)return;
+ try{await LN.requestPermissions()}catch(e){}
+ try{const r=await LN.checkExactNotificationSetting();if(r.exact_alarm!=='granted')await LN.changeExactNotificationSetting()}catch(e){}
+ sync()}
+async function exportar(){const name='meu-dia-backup-'+today()+'.json';
+ try{const out=Object.assign({app:'meu-dia',version:3,exportedAt:new Date().toISOString()},S,{bills:[]});
+  for(const b of S.bills){const c=Object.assign({},b);if(b.hf){try{const bl=await DB.get('b'+b.id);c.fileData=bl?await blobToURL(bl):null}catch(e){}}out.bills.push(c)}
+  const json=JSON.stringify(out);
+  if(native){const FS=plug('Filesystem'),SH=plug('Share');await FS.writeFile({path:name,data:json,directory:'CACHE',encoding:'utf8'});const u=await FS.getUri({path:name,directory:'CACHE'});S.bk=Date.now();save();await SH.share({title:'Backup Meu Dia',files:[u.uri]})}
+  else{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([json],{type:'application/json'}));a.download=name;a.click();S.bk=Date.now();save()}
+  render()}catch(e){toast('Não foi possível exportar o backup.')}}
+function importar(f){if(!f)return;const r=new FileReader();r.onload=async()=>{try{let x=JSON.parse(r.result);if(x&&x.app=='meu-dia'&&x.version==2)x=fromOld(x);
+ if(!x||!Array.isArray(x.tasks)||!Array.isArray(x.bills)||!Array.isArray(x.alarms))throw 0;
+ if(!confirm('Substituir os dados atuais pelo backup?'))return;
+ for(const b of x.bills){if(b.fileData){const bl=await (await fetch(b.fileData)).blob();await DB.put('b'+b.id,bl);b.hf=true;delete b.fileData}delete b.oldId}
+ S=Object.assign({n:1,bk:0},x);S.tasks.forEach(t=>{t.dur=t.dur||0;t.rep=t.rep||'none'});save();render();sync();toast('Backup restaurado.')}catch(e){toast('Arquivo de backup inválido.')}};r.readAsText(f)}
+document.addEventListener('change',e=>{if(e.target.id=='fi'){importar(e.target.files[0]);e.target.value=''}});
+document.addEventListener('click',async e=>{const b=e.target.closest('[data-a]');if(!b)return;const a=b.dataset.a,i=+b.dataset.i,f=L=>L.find(x=>x.id===i);
+ if(a=='tab'){tab=i;return render()}
+ if(a=='ds'){dsel=dsel.includes(i)?dsel.filter(x=>x!==i):[...dsel,i];return b.classList.toggle('on')}
+ if(a=='ex')return exportar();
+ if(a=='im')return $('#fi').click();
+ if(a=='pm'){await perms();return toast('Permissões conferidas.')}
+ if(a=='tm'){const t=f(S.tasks);if(!t||!t.dur)return;stopT();TM={id:i,rem:t.dur*6e4,running:false,endsAt:null,fin:false};saveTM();if(tab!=1){tab=1;render()}sync();drawT();const c=$('#tmc');if(c)c.scrollIntoView({behavior:'smooth',block:'center'});return}
+ if(a=='ts'){if(!TM||TM.running||remain()<=0)return;TM.running=true;TM.fin=false;TM.endsAt=Date.now()+TM.rem;saveTM();runT();sync();return drawT()}
+ if(a=='tp'){if(!TM||!TM.running)return;TM.rem=remain();TM.running=false;TM.endsAt=null;saveTM();stopT();sync();return drawT()}
+ if(a=='tr'){if(!TM)return;const t=S.tasks.find(x=>x.id===TM.id);TM.rem=((t&&t.dur)||0)*6e4;TM.running=false;TM.endsAt=null;TM.fin=false;saveTM();stopT();sync();return drawT()}
+ if(a=='dl')return abrirAnexo(i);
+ if(a=='wn'){try{const p=await Notification.requestPermission();return toast(p=='granted'?'Notificações ativadas.':'Notificações não autorizadas.')}catch(e){return toast('Este navegador não oferece notificações.')}}
+ if(a=='at'){const t=$('#tt').value.trim();if(!t)return toast('Escreva a tarefa.');S.tasks.push({id:S.n++,t,d:$('#td').value,h:$('#th').value,dur:Number($('#tdu').value)||0,rep:$('#trp').value,done:false})}
+ else if(a=='tg'){const x=f(S.tasks);x.done=!x.done;if(x.done&&x.rep&&x.rep!='none'&&!x.sp){x.sp=1;S.tasks.push({id:S.n++,t:x.t,d:nextD(x.d,x.rep),h:x.h,dur:x.dur,rep:x.rep,done:false})}}
+ else if(a=='dt')S.tasks=S.tasks.filter(x=>x.id!==i);
+ else if(a=='ab'){const t=$('#bt').value.trim(),v=parseFloat($('#bv').value.replace(',','.')),d=$('#bd').value;if(!t||!(v>=0)||!d)return toast('Preencha descrição, valor e vencimento.');const id=S.n++,file=$('#bf').files[0];let fn='',hf=false;
+  if(file&&file.size){if(file.size>8*1048576)return toast('Arquivo acima de 8 MB. Escolha um menor.');try{await DB.put('b'+id,file);hf=true;fn=file.name}catch(e){return toast('Não foi possível guardar o anexo.')}}
+  S.bills.push({id,t,v,d,cat:$('#bc').value.trim(),paid:false,fn,hf})}
+ else if(a=='pg'){const x=f(S.bills);x.paid=!x.paid}
+ else if(a=='db'){S.bills=S.bills.filter(x=>x.id!==i);DB.del('b'+i).catch(()=>{})}
+ else if(a=='aa'){const [h,m]=($('#at_').value||'').split(':').map(Number);if(isNaN(h))return toast('Escolha o horário.');
+  const d=new Date();d.setHours(h,m,0,0);if(d<=Date.now())d.setDate(d.getDate()+1);
+  S.alarms.push({id:S.n++,h,m,l:$('#al').value.trim(),days:[...dsel].sort(),on:true,at:d.getTime(),s:$('#as').value});dsel=[];perms()}
+ else if(a=='ta'){const x=f(S.alarms);x.on=!x.on;if(x.on&&!x.days.length){const d=new Date();d.setHours(x.h,x.m,0,0);if(d<=Date.now())d.setDate(d.getDate()+1);x.at=d.getTime()}}
+ else if(a=='da')S.alarms=S.alarms.filter(x=>x.id!==i);
+ save();render();sync()});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){render();sync()}});
+if(!native&&'serviceWorker'in navigator&&location.protocol=='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
+if(!native)setInterval(()=>{const n=new Date(),hm=pad(n.getHours())+':'+pad(n.getMinutes()),k=today()+hm;S.alarms.forEach(a=>{if(a.on&&pad(a.h)+':'+pad(a.m)==hm&&(!a.days.length||a.days.includes(n.getDay()))&&a.last!=k){a.last=k;if(!a.days.length)a.on=false;save();render();beep();if('Notification'in window&&Notification.permission=='granted')new Notification('Meu Dia: '+(a.l||'Alarme'),{body:'Está na hora!'});else toast('⏰ '+(a.l||'Alarme'))}})},15000);
+migrate().catch(()=>{}).then(()=>{render();sync();if(TM&&TM.running){if(remain()<=0)finT();else runT()}if(native&&!S.asked){S.asked=1;save();perms()}});
 </script></body></html>
