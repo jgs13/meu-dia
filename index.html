@@ -197,7 +197,6 @@ function vBills(){const L=[...S.bills].sort((a,b)=>(a.paid-b.paid)||a.d.localeCo
  return `<div class="card"><h2>Nova conta</h2><input id="bt" placeholder="Descrição (ex.: Luz)"><div class="two"><input id="bv" type="text" inputmode="decimal" placeholder="Valor"><input id="bd" type="date"></div><input id="bc" placeholder="Categoria (casa, água, internet...)"><p class="mut sm" style="margin:0 0 4px">PDF ou comprovante (opcional)</p><input id="bf" type="file" accept=".pdf,image/*"><button class="btn" data-a="ab">Adicionar conta</button><p class="mut sm">O app avisa na véspera, às 18h, e no dia, às 8h.</p></div><div class="card">${L.length?L.map(rowB).join(''):'<p class="empty">Nenhuma conta cadastrada.</p>'}</div>`}
 function vAlarms(){
  const editing=editingAlarm==null?null:S.alarms.find(x=>x.id===editingAlarm);
- if(editing&&dsel.length===0)dsel=[...(editing.days||[])];
  const time=editing?pad(editing.h)+':'+pad(editing.m):'07:00';
  return `<div class="card"><h2>${editing?'Editar alarme':'Novo alarme'}</h2><input id="at_" type="time" value="${time}"><input id="al" placeholder="Nome (opcional)" value="${esc(editing?editing.l||'':'')}"><button class="btn s" data-a="pickring">Escolher toque do celular</button><button class="btn s" data-a="clearring">Toque padrão</button><p class="mut sm" id="ringLabel">${esc(window._pickedRing?.name||(editing&&editing.ringName)||'Toque padrão do Android')}</p><div class="chips">${DN.map((d,i)=>`<button class="chip${dsel.includes(i)?' on':''}" data-a="ds" data-i="${i}">${d}</button>`).join('')}</div><p class="mut sm">Sem dia marcado, toca uma vez. O alarme toca continuamente até ser parado pela notificação ou pelo aplicativo.</p><button class="btn" data-a="aa">${editing?'Salvar alterações':'Adicionar alarme'}</button>${editing?'<button class="btn s" data-a="canceledit">Cancelar edição</button>':''}</div>`+
  (native?`<div class="card"><button class="btn s" data-a="pm">Ativar permissões de alarme</button><button class="btn s" data-a="stopring">Parar toque agora</button><p class="mut sm">Permita notificações e alarmes exatos. Para maior confiabilidade, configure a bateria do Meu Dia como “Sem restrições”.</p></div>`:`<div class="card warn"><p class="mut">O toque contínuo com a tela bloqueada exige o APK Android. No navegador, os alertas dependem das permissões e das limitações do navegador.</p></div>`)+
@@ -273,6 +272,7 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-a]')
  if(a=='ds'){dsel=dsel.includes(i)?dsel.filter(x=>x!==i):[...dsel,i];return b.classList.toggle('on')}
  if(a==='editalarm'){editingAlarm=i;dsel=[...(f(S.alarms)?.days||[])];window._pickedRing=null;return render()}
  if(a==='canceledit'){editingAlarm=null;dsel=[];window._pickedRing=null;return render()}
+ if(a==='tab'&&i!==3){editingAlarm=null;dsel=[];window._pickedRing=null;tab=i;return render()}
  if(a==='pickring'||a==='picktimer'){const NA=getNA();if(!native)return toast('Abra esta função na versão APK Android.');if(!NA||typeof NA.chooseRingtone!=='function')return toast('Plugin de toque ainda não carregado. Feche e abra o aplicativo novamente.');try{const cur=a==='picktimer'?(S.timerRingUri||''):(window._pickedRing?.uri||(editingAlarm!=null?f(S.alarms)?.ringUri||'':''));const r=await NA.chooseRingtone({currentUri:cur});if(r&&r.uri){if(a==='picktimer'){S.timerRingUri=r.uri;S.timerRingName=r.name||'Toque selecionado';save();render()}else{window._pickedRing={uri:r.uri,name:r.name||'Toque escolhido'};render()}}}catch(err){toast('Não foi possível abrir os toques do celular.')}return}
  if(a==='clearring'){window._pickedRing={uri:'',name:'Toque padrão do Android'};const el=$('#ringLabel');if(el)el.textContent='Toque padrão do Android';return}
  if(a==='cleartimer'){delete S.timerRingUri;delete S.timerRingName;save();return render()}
@@ -295,8 +295,7 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-a]')
   S.bills.push({id,t,v,d,cat:$('#bc').value.trim(),paid:false,fn,hf})}
  else if(a=='pg'){const x=f(S.bills);x.paid=!x.paid}
  else if(a=='db'){S.bills=S.bills.filter(x=>x.id!==i);DB.del('b'+i).catch(()=>{})}
- else if(a=='savealarm'){const x=f(S.alarms),[h,m]=($('#at_').value||'').split(':').map(Number);if(!x||isNaN(h)||isNaN(m))return toast('Confira o horário.');x.h=h;x.m=m;x.l=$('#al').value.trim();x.s=$('#as').value;x.days=[...dsel].sort();if(window._pickedRing){x.ringUri=window._pickedRing.uri;x.ringName=window._pickedRing.name;window._pickedRing=null}const d=new Date();d.setHours(h,m,0,0);if(d<=Date.now())d.setDate(d.getDate()+1);x.at=d.getTime();editingAlarm=null;dsel=[]}
-  else if(a=='aa'){const [h,m]=($('#at_').value||'').split(':').map(Number);if(!Number.isInteger(h)||!Number.isInteger(m))return toast('Escolha o horário.');
+ else if(a=='aa'){const [h,m]=($('#at_').value||'').split(':').map(Number);if(!Number.isInteger(h)||!Number.isInteger(m))return toast('Escolha o horário.');
   const d=new Date();d.setHours(h,m,0,0);if(d<=Date.now())d.setDate(d.getDate()+1);
   const old=editingAlarm==null?null:f(S.alarms);
   const ring=window._pickedRing;
