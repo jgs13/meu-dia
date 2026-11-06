@@ -168,7 +168,7 @@ del(k){return this.open().then(db=>new Promise((res,rej)=>{const tx=db.transacti
 const blobToURL=b=>new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(b)});
 let FRESH=false;try{FRESH=!localStorage.getItem(KEY)}catch(e){}
 let TM=null;try{TM=JSON.parse(localStorage.getItem('meudia.timer')||'null')}catch(e){}
-let tInt=null,AC=null,tab=0,dsel=[],S=load();
+let tInt=null,AC=null,tab=0,dsel=[],S=load(),editingAlarm=null;
 const THEME_KEY='meudia.theme';
 function applyTheme(v){const t=['original','light','teal'].includes(v)?v:'original';if(t==='original')document.documentElement.removeAttribute('data-theme');else document.documentElement.dataset.theme=t;try{localStorage.setItem(THEME_KEY,t)}catch(e){}}
 try{applyTheme(localStorage.getItem(THEME_KEY)||'original')}catch(e){applyTheme('original')}
@@ -194,7 +194,7 @@ function vBills(){const L=[...S.bills].sort((a,b)=>(a.paid-b.paid)||a.d.localeCo
 function vAlarms(){
  return `<div class="card"><h2>Novo alarme</h2><input id="at_" type="time" value="07:00"><input id="al" placeholder="Nome (opcional)"><select id="as"><option value="beep">Toque padrão</option><option value="strong">Toque insistente</option></select><div class="chips">${DN.map((d,i)=>`<button class="chip${dsel.includes(i)?' on':''}" data-a="ds" data-i="${i}">${d}</button>`).join('')}</div><p class="mut sm">Sem dia marcado, toca uma vez.</p><button class="btn" data-a="aa">Adicionar alarme</button></div>`+
  (native?`<div class="card"><button class="btn s" data-a="pm">Ativar permissões de alarme</button><p class="mut sm">Se o alarme atrasar: Configurações do Android › Apps › Meu Dia › Bateria › Sem restrições.</p></div>`:`<div class="card warn"><p class="mut" style="margin:0">Os alarmes só tocam com o celular bloqueado no app APK.</p><button class="btn s" data-a="wn" style="margin-top:10px">Ativar notificações</button></div>`)+
- `<div class="card">${S.alarms.length?S.alarms.map(a=>`<div class="row"><div class="grow"><b class="tm">${pad(a.h)}:${pad(a.m)}</b><small>${esc(a.l||'Alarme')} · ${a.days.length?a.days.map(d=>DN[d]).join(' '):'uma vez'}${a.s=='strong'?' · insistente':''}</small></div><button class="sw${a.on?' on':''}" data-a="ta" data-i="${a.id}" aria-label="Ligar ou desligar"></button><button class="x" data-a="da" data-i="${a.id}">✕</button></div>`).join(''):'<p class="empty">Nenhum alarme ainda.</p>'}</div>`}
+ `<div class="card">${S.alarms.length?S.alarms.map(a=>`<div class="row"><div class="grow"><b class="tm">${pad(a.h)}:${pad(a.m)}</b><small>${esc(a.l||'Alarme')} · ${a.days.length?a.days.map(d=>DN[d]).join(' '):'uma vez'}${a.s=='strong'?' · insistente':''}${a.ringName?' · '+esc(a.ringName):''}</small></div><button class="btn s" data-a="editalarm" data-i="${a.id}">Editar</button><button class="sw${a.on?' on':''}" data-a="ta" data-i="${a.id}" aria-label="Ligar ou desligar"></button><button class="x" data-a="da" data-i="${a.id}">✕</button></div>`).join(''):'<p class="empty">Nenhum alarme ainda.</p>'}</div>`}
 function vPerf(){
  const now=new Date(),st=new Date(now);st.setDate(now.getDate()-((now.getDay()+6)%7));const a1=iso(st),a2=iso(new Date(now.getFullYear(),now.getMonth(),1)),t0=today();
  const el=f=>S.tasks.filter(t=>t.d&&t.d>=f&&t.d<=t0),rate=a=>a.length?Math.round(a.filter(t=>t.done).length/a.length*100):0,w=el(a1),m=el(a2),days=[];
@@ -211,7 +211,7 @@ function drawT(){const d=$('#tmd');if(!d)return;const r=remain(),t=TM&&S.tasks.f
  $('#tms').disabled=!TM||TM.running||r<=0;$('#tmp').disabled=!TM||!TM.running;$('#tmr').disabled=!TM}
 function runT(){clearInterval(tInt);tInt=setInterval(()=>{if(remain()<=0)finT();else drawT()},250)}
 function stopT(){clearInterval(tInt);tInt=null}
-function finT(){if(!TM||TM.fin)return;TM.running=false;TM.rem=0;TM.endsAt=null;TM.fin=true;saveTM();stopT();drawT();beep()}
+function finT(){if(!TM||TM.fin)return;TM.running=false;TM.rem=0;TM.endsAt=null;TM.fin=true;saveTM();stopT();drawT();beep();const NA=plug('NativeAlarm');if(native&&NA&&NA.stopRinging)NA.stopRinging()}
 function beep(){try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();if(AC.state=='suspended')AC.resume();const s=AC.currentTime;
  [0,.35,.7].forEach((o,i)=>{const os=AC.createOscillator(),g=AC.createGain();os.type='sine';os.frequency.value=i==1?880:660;g.gain.setValueAtTime(.0001,s+o);g.gain.exponentialRampToValueAtTime(.45,s+o+.025);g.gain.exponentialRampToValueAtTime(.0001,s+o+.23);os.connect(g);g.connect(AC.destination);os.start(s+o);os.stop(s+o+.25)})}catch(e){}
  try{navigator.vibrate&&navigator.vibrate([300,150,300])}catch(e){}
@@ -268,6 +268,10 @@ document.addEventListener('change',e=>{if(e.target.id=='fi'){importar(e.target.f
 document.addEventListener('click',async e=>{const b=e.target.closest('[data-a]');if(!b)return;const a=b.dataset.a,i=+b.dataset.i,f=L=>L.find(x=>x.id===i);
  if(a=='tab'){tab=i;return render()}
  if(a=='ds'){dsel=dsel.includes(i)?dsel.filter(x=>x!==i):[...dsel,i];return b.classList.toggle('on')}
+  if(a==='editalarm'){editingAlarm=i;dsel=[...(f(S.alarms)?.days||[])];return render()}
+  if(a==='canceledit'){editingAlarm=null;dsel=[];return render()}
+  if(a==='pickring'){const NA=plug('NativeAlarm');if(!native||!NA||!NA.pickRingtone)return toast('A seleção de toque do Android depende da integração nativa da nova versão.');try{const r=await NA.pickRingtone();if(r&&r.uri){window._pickedRing={uri:r.uri,name:r.name||'Toque escolhido'};const el=$('#ringLabel');if(el)el.textContent=window._pickedRing.name}}catch(e){toast('Não foi possível abrir os toques do celular.')}return}
+
  if(a=='ex')return exportar();
  if(a=='im')return $('#fi').click();
  if(a=='pm'){await perms();return toast('Permissões conferidas.')}
@@ -285,11 +289,12 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-a]')
   S.bills.push({id,t,v,d,cat:$('#bc').value.trim(),paid:false,fn,hf})}
  else if(a=='pg'){const x=f(S.bills);x.paid=!x.paid}
  else if(a=='db'){S.bills=S.bills.filter(x=>x.id!==i);DB.del('b'+i).catch(()=>{})}
- else if(a=='aa'){const [h,m]=($('#at_').value||'').split(':').map(Number);if(isNaN(h))return toast('Escolha o horário.');
+ else if(a=='savealarm'){const x=f(S.alarms),[h,m]=($('#at_').value||'').split(':').map(Number);if(!x||isNaN(h)||isNaN(m))return toast('Confira o horário.');x.h=h;x.m=m;x.l=$('#al').value.trim();x.s=$('#as').value;x.days=[...dsel].sort();if(window._pickedRing){x.ringUri=window._pickedRing.uri;x.ringName=window._pickedRing.name;window._pickedRing=null}const d=new Date();d.setHours(h,m,0,0);if(d<=Date.now())d.setDate(d.getDate()+1);x.at=d.getTime();editingAlarm=null;dsel=[]}
+  else if(a=='aa'){const [h,m]=($('#at_').value||'').split(':').map(Number);if(isNaN(h))return toast('Escolha o horário.');
   const d=new Date();d.setHours(h,m,0,0);if(d<=Date.now())d.setDate(d.getDate()+1);
-  S.alarms.push({id:S.n++,h,m,l:$('#al').value.trim(),days:[...dsel].sort(),on:true,at:d.getTime(),s:$('#as').value});dsel=[];perms()}
+  S.alarms.push({id:S.n++,h,m,l:$('#al').value.trim(),days:[...dsel].sort(),on:true,at:d.getTime(),s:$('#as').value,...(window._pickedRing?{ringUri:window._pickedRing.uri,ringName:window._pickedRing.name}:{})});window._pickedRing=null;dsel=[];perms()}
  else if(a=='ta'){const x=f(S.alarms);x.on=!x.on;if(x.on&&!x.days.length){const d=new Date();d.setHours(x.h,x.m,0,0);if(d<=Date.now())d.setDate(d.getDate()+1);x.at=d.getTime()}}
- else if(a=='da')S.alarms=S.alarms.filter(x=>x.id!==i);
+ else if(a=='da'){S.alarms=S.alarms.filter(x=>x.id!==i);if(editingAlarm===i)editingAlarm=null}
  save();render();sync()});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden){render();sync()}});
 if(!native&&'serviceWorker'in navigator&&location.protocol=='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
