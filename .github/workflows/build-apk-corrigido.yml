@@ -1,0 +1,302 @@
+name: Gerar APK
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - index.html
+      - manifest.webmanifest
+      - icon-192.png
+      - icon-512.png
+      - sw.js
+      - .github/workflows/build-apk.yml
+permissions:
+  contents: write
+concurrency: apk
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - name: Chave de assinatura
+        run: |
+          mkdir -p ~/.android
+          if [ ! -f meu-dia.keystore ]; then
+            keytool -genkeypair -keystore meu-dia.keystore -alias androiddebugkey -storepass android -keypass android -keyalg RSA -keysize 2048 -validity 36500 -dname "CN=Meu Dia"
+            git config user.name github-actions
+            git config user.email actions@github.com
+            git add meu-dia.keystore
+            git commit -m "Chave do app"
+            git push
+          fi
+          cp meu-dia.keystore ~/.android/debug.keystore
+      - name: Montar o app
+        run: |
+          mkdir www
+          cp index.html manifest.webmanifest sw.js icon-192.png icon-512.png www/
+          npm init -y
+          npm i @capacitor/core@6 @capacitor/cli@6 @capacitor/android@6 @capacitor/local-notifications@6 @capacitor/share@6 @capacitor/filesystem@6
+          npx cap init "Meu Dia" com.jardel.meudia --web-dir www
+          npx cap add android
+          npx cap sync android
+          R=android/app/src/main
+          mkdir -p "$R/java/com/jardel/meudia"
+          cat > "$R/java/com/jardel/meudia/NativeAlarmPlugin.java" <<'JAVA'
+          package com.jardel.meudia;
+
+          import android.app.AlarmManager;
+          import android.content.Context;
+          import android.content.Intent;
+          import android.media.Ringtone;
+          import android.media.RingtoneManager;
+          import android.net.Uri;
+          import android.os.Build;
+          import android.provider.Settings;
+          import androidx.activity.result.ActivityResult;
+          import com.getcapacitor.JSArray;
+          import com.getcapacitor.JSObject;
+          import com.getcapacitor.Plugin;
+          import com.getcapacitor.PluginCall;
+          import com.getcapacitor.PluginMethod;
+          import com.getcapacitor.annotation.ActivityCallback;
+          import com.getcapacitor.annotation.CapacitorPlugin;
+          import org.json.JSONException;
+          import java.util.ArrayList;
+
+          @CapacitorPlugin(name = "NativeAlarm")
+          public class NativeAlarmPlugin extends Plugin {
+              @PluginMethod public void chooseRingtone(PluginCall call) {
+                  Intent intent = new Intent(RingtoneManager.ACTION_RINGTONE_PICKER);
+                  intent.putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_ALARM);
+                  intent.putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, "Escolha o toque do alarme");
+                  intent.putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false);
+                  intent.putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true);
+                  String current = call.getString("currentUri", "");
+                  if (current != null && !current.isEmpty()) intent.putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, Uri.parse(current));
+                  startActivityForResult(call, intent, "ringtoneResult");
+              }
+
+              @ActivityCallback protected void ringtoneResult(PluginCall call, ActivityResult result) {
+                  if (call == null) return;
+                  JSObject ret = new JSObject();
+                  if (result.getResultCode() == android.app.Activity.RESULT_OK && result.getData() != null) {
+                      Uri uri = result.getData().getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI);
+                      if (uri != null) {
+                          ret.put("uri", uri.toString());
+                          Ringtone tone = RingtoneManager.getRingtone(getContext(), uri);
+                          ret.put("name", tone != null ? tone.getTitle(getContext()) : "Toque escolhido");
+                      }
+                  }
+                  call.resolve(ret);
+              }
+
+              @PluginMethod public void scheduleAlarm(PluginCall call) {
+                  int id = call.getInt("id", 0);
+                  long at = call.getLong("at", 0L);
+                  if (id <= 0 || at <= System.currentTimeMillis()) { call.reject("Horário de alarme inválido"); return; }
+                  Intent intent = new Intent(getContext(), AlarmReceiver.class);
+                  intent.putExtra("ring_id", id);
+                  intent.putExtra("ring_label", call.getString("label", "Alarme"));
+                  intent.putExtra("ring_uri", call.getString("ringtoneUri", ""));
+                  intent.putExtra("hour", call.getInt("hour", 0));
+                  intent.putExtra("minute", call.getInt("minute", 0));
+                  JSArray arr = call.getArray("days");
+                  ArrayList<Integer> days = new ArrayList<>();
+                  if (arr != null) for (int i = 0; i < arr.length(); i++) { try { days.add(arr.getInt(i)); } catch (JSONException ignored) {} }
+                  int[] ds = new int[days.size()]; for (int i = 0; i < days.size(); i++) ds[i] = days.get(i);
+                  intent.putExtra("days", ds);
+                  AlarmReceiver.schedule(getContext(), 500000 + id, at, intent);
+                  call.resolve();
+              }
+
+              @PluginMethod public void cancelAlarm(PluginCall call) {
+                  int id = call.getInt("id", 0);
+                  AlarmReceiver.cancel(getContext(), 500000 + id);
+                  call.resolve();
+              }
+
+              @PluginMethod public void scheduleTimer(PluginCall call) {
+                  long at = call.getLong("at", 0L);
+                  if (at <= System.currentTimeMillis()) { call.reject("Horário do cronômetro inválido"); return; }
+                  Intent intent = new Intent(getContext(), AlarmReceiver.class);
+                  intent.putExtra("ring_id", -999);
+                  intent.putExtra("ring_label", call.getString("label", "Cronômetro"));
+                  intent.putExtra("ring_uri", call.getString("ringtoneUri", ""));
+                  AlarmReceiver.schedule(getContext(), 599999, at, intent);
+                  call.resolve();
+              }
+
+              @PluginMethod public void cancelTimer(PluginCall call) { AlarmReceiver.cancel(getContext(), 599999); call.resolve(); }
+
+              @PluginMethod public void stopRinging(PluginCall call) {
+                  Intent intent = new Intent(getContext(), AlarmRingingService.class);
+                  intent.setAction(AlarmRingingService.ACTION_STOP);
+                  getContext().startService(intent);
+                  call.resolve();
+              }
+
+              @PluginMethod public void requestExactAlarmPermission(PluginCall call) {
+                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                      AlarmManager am = (AlarmManager) getContext().getSystemService(Context.ALARM_SERVICE);
+                      if (am != null && !am.canScheduleExactAlarms()) {
+                          Intent i = new Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:" + getContext().getPackageName()));
+                          getActivity().startActivity(i);
+                      }
+                  }
+                  call.resolve();
+              }
+          }
+          JAVA
+          cat > "$R/java/com/jardel/meudia/AlarmReceiver.java" <<'JAVA'
+          package com.jardel.meudia;
+
+          import android.app.AlarmManager;
+          import android.app.PendingIntent;
+          import android.content.BroadcastReceiver;
+          import android.content.Context;
+          import android.content.Intent;
+          import android.os.Build;
+          import java.util.Calendar;
+
+          public class AlarmReceiver extends BroadcastReceiver {
+              public static void schedule(Context c, int requestCode, long at, Intent intent) {
+                  intent.setClass(c, AlarmReceiver.class);
+                  PendingIntent pi = PendingIntent.getBroadcast(c, requestCode, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+                  AlarmManager am = (AlarmManager) c.getSystemService(Context.ALARM_SERVICE);
+                  if (am == null) return;
+                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pi);
+                  else am.setExact(AlarmManager.RTC_WAKEUP, at, pi);
+              }
+
+              public static void cancel(Context c, int requestCode) {
+                  Intent i = new Intent(c, AlarmReceiver.class);
+                  PendingIntent pi = PendingIntent.getBroadcast(c, requestCode, i, PendingIntent.FLAG_NO_CREATE | PendingIntent.FLAG_IMMUTABLE);
+                  if (pi != null) { AlarmManager am = (AlarmManager)c.getSystemService(Context.ALARM_SERVICE); if (am != null) am.cancel(pi); pi.cancel(); }
+              }
+
+              @Override public void onReceive(Context context, Intent intent) {
+                  if (AlarmRingingService.ACTION_STOP.equals(intent.getAction())) {
+                      context.stopService(new Intent(context, AlarmRingingService.class));
+                      return;
+                  }
+                  Intent service = new Intent(context, AlarmRingingService.class);
+                  service.putExtras(intent.getExtras() == null ? new android.os.Bundle() : intent.getExtras());
+                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) context.startForegroundService(service); else context.startService(service);
+                  int[] days = intent.getIntArrayExtra("days");
+                  if (days != null && days.length > 0) {
+                      Calendar c = Calendar.getInstance();
+                      c.add(Calendar.DAY_OF_YEAR, 1);
+                      c.set(Calendar.HOUR_OF_DAY, intent.getIntExtra("hour", 0));
+                      c.set(Calendar.MINUTE, intent.getIntExtra("minute", 0));
+                      c.set(Calendar.SECOND, 0); c.set(Calendar.MILLISECOND, 0);
+                      for (int k = 0; k < 8; k++) {
+                          int dow = c.get(Calendar.DAY_OF_WEEK) - 1;
+                          boolean match = false; for (int day : days) if (day == dow) match = true;
+                          if (match) break;
+                          c.add(Calendar.DAY_OF_YEAR, 1);
+                      }
+                      Intent next = new Intent(context, AlarmReceiver.class);
+                      next.putExtras(intent.getExtras());
+                      schedule(context, 500000 + intent.getIntExtra("ring_id", 0), c.getTimeInMillis(), next);
+                  }
+              }
+          }
+          JAVA
+          cat > "$R/java/com/jardel/meudia/AlarmRingingService.java" <<'JAVA'
+          package com.jardel.meudia;
+
+          import android.app.Notification;
+          import android.app.NotificationChannel;
+          import android.app.NotificationManager;
+          import android.app.PendingIntent;
+          import android.app.Service;
+          import android.content.Intent;
+          import android.media.AudioAttributes;
+          import android.media.Ringtone;
+          import android.media.RingtoneManager;
+          import android.net.Uri;
+          import android.os.Build;
+          import android.os.IBinder;
+
+          public class AlarmRingingService extends Service {
+              public static final String ACTION_STOP = "com.jardel.meudia.STOP_RINGING";
+              private Ringtone ringtone;
+              private static final String CHANNEL = "meudia_alarm_audio";
+
+              @Override public void onCreate() {
+                  super.onCreate();
+                  NotificationManager nm = (NotificationManager)getSystemService(NOTIFICATION_SERVICE);
+                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && nm != null) {
+                      NotificationChannel ch = new NotificationChannel(CHANNEL, "Toque de alarmes", NotificationManager.IMPORTANCE_HIGH);
+                      ch.setSound(null, null); ch.enableVibration(true); nm.createNotificationChannel(ch);
+                  }
+              }
+
+              @Override public int onStartCommand(Intent intent, int flags, int startId) {
+                  if (intent != null && ACTION_STOP.equals(intent.getAction())) { stopSelf(); return START_NOT_STICKY; }
+                  String label = intent == null ? "Alarme" : intent.getStringExtra("ring_label");
+                  if (label == null || label.isEmpty()) label = "Alarme";
+                  Intent stop = new Intent(this, AlarmReceiver.class); stop.setAction(ACTION_STOP);
+                  PendingIntent stopPi = PendingIntent.getBroadcast(this, 700001, stop, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+                  Notification.Builder b = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O ? new Notification.Builder(this, CHANNEL) : new Notification.Builder(this);
+                  Notification n = b.setSmallIcon(android.R.drawable.ic_lock_idle_alarm).setContentTitle("Meu Dia — " + label).setContentText("Toque ativo. Toque em Parar para encerrar.").setOngoing(true).setCategory(Notification.CATEGORY_ALARM).addAction(android.R.drawable.ic_media_pause, "Parar", stopPi).build();
+                  startForeground(77, n);
+                  stopTone();
+                  String raw = intent == null ? "" : intent.getStringExtra("ring_uri");
+                  Uri uri = raw == null || raw.isEmpty() ? RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM) : Uri.parse(raw);
+                  if (uri == null) uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
+                  try {
+                      ringtone = RingtoneManager.getRingtone(this, uri);
+                      if (ringtone != null) {
+                          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) ringtone.setAudioAttributes(new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM).setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build());
+                          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) ringtone.setLooping(true);
+                          ringtone.play();
+                      }
+                  } catch (Exception ignored) {}
+                  return START_STICKY;
+              }
+
+              private void stopTone() { try { if (ringtone != null && ringtone.isPlaying()) ringtone.stop(); } catch (Exception ignored) {} ringtone = null; }
+              @Override public void onDestroy() { stopTone(); stopForeground(true); super.onDestroy(); }
+              @Override public IBinder onBind(Intent intent) { return null; }
+          }
+          JAVA
+          python3 - <<'PY'
+          p='android/app/src/main/AndroidManifest.xml'
+          s=open(p).read()
+          perms=['POST_NOTIFICATIONS','SCHEDULE_EXACT_ALARM','USE_EXACT_ALARM','RECEIVE_BOOT_COMPLETED','VIBRATE','WAKE_LOCK','FOREGROUND_SERVICE','FOREGROUND_SERVICE_MEDIA_PLAYBACK']
+          add=''.join('<uses-permission android:name="android.permission.%s"/>'%x for x in perms)
+          s=s.replace('</manifest>',add+'</manifest>')
+          components='''<service android:name="com.jardel.meudia.AlarmRingingService" android:exported="false" android:foregroundServiceType="mediaPlayback"/><receiver android:name="com.jardel.meudia.AlarmReceiver" android:enabled="true" android:exported="false"/>'''
+          s=s.replace('</application>',components+'</application>')
+          open(p,'w').write(s)
+          PY
+          python3 - <<'PY'
+          p='android/app/src/main/java/com/getcapacitor/myapp/MainActivity.java'
+          import glob
+          files=glob.glob('android/app/src/main/java/**/MainActivity.java',recursive=True)
+          if not files: raise SystemExit('MainActivity.java não encontrado')
+          p=files[0]
+          s=open(p).read()
+          if 'NativeAlarmPlugin' not in s:
+              s=s.replace('import com.getcapacitor.BridgeActivity;','import com.getcapacitor.BridgeActivity;\nimport com.jardel.meudia.NativeAlarmPlugin;')
+              s=s.replace('super.onCreate(savedInstanceState);','registerPlugin(NativeAlarmPlugin.class);\n        super.onCreate(savedInstanceState);')
+          open(p,'w').write(s)
+          PY
+          rm -rf $R/res/mipmap-anydpi-v26
+          for d in mdpi hdpi xhdpi xxhdpi xxxhdpi; do cp icon-192.png $R/res/mipmap-$d/ic_launcher.png; cp icon-192.png $R/res/mipmap-$d/ic_launcher_round.png; done
+          sed -i "s/versionCode 1/versionCode ${{ github.run_number }}/" android/app/build.gradle
+      - name: Compilar
+        run: cd android && ./gradlew assembleDebug --no-daemon
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-${{ github.run_number }}
+          name: Meu Dia (versão ${{ github.run_number }})
+          files: android/app/build/outputs/apk/debug/app-debug.apk
