@@ -43,6 +43,8 @@ jobs:
           cp index.html manifest.webmanifest sw.js icon-192.png icon-512.png www/
           npm init -y
           npm i @capacitor/core@6 @capacitor/cli@6 @capacitor/android@6 @capacitor/local-notifications@6 @capacitor/share@6 @capacitor/filesystem@6
+          mkdir -p www/capacitor-core
+          cp -R node_modules/@capacitor/core/dist www/capacitor-core/
           npx cap init "Meu Dia" com.jardel.meudia --web-dir www
           npx cap add android
           npx cap sync android
@@ -279,16 +281,18 @@ jobs:
           open(p,'w').write(s)
           PY
           python3 - <<'PY'
-          p='android/app/src/main/java/com/getcapacitor/myapp/MainActivity.java'
-          import glob
+          import glob, re
           files=glob.glob('android/app/src/main/java/**/MainActivity.java',recursive=True)
           if not files: raise SystemExit('MainActivity.java não encontrado')
           p=files[0]
           s=open(p).read()
-          if 'NativeAlarmPlugin' not in s:
-              s=s.replace('import com.getcapacitor.BridgeActivity;','import com.getcapacitor.BridgeActivity;\nimport com.jardel.meudia.NativeAlarmPlugin;')
-              s=s.replace('super.onCreate(savedInstanceState);','registerPlugin(NativeAlarmPlugin.class);\n        super.onCreate(savedInstanceState);')
+          if 'import com.jardel.meudia.NativeAlarmPlugin;' not in s:
+              s=s.replace('import com.getcapacitor.BridgeActivity;', 'import com.getcapacitor.BridgeActivity;\nimport com.jardel.meudia.NativeAlarmPlugin;')
+          if 'registerPlugin(NativeAlarmPlugin.class);' not in s:
+              s,n=re.subn(r'(public void onCreate\([^)]*\)\s*\{)', r'\1\n        registerPlugin(NativeAlarmPlugin.class);', s, count=1)
+              if n != 1: raise SystemExit('Não foi possível registrar NativeAlarmPlugin em MainActivity.java')
           open(p,'w').write(s)
+          print('NativeAlarmPlugin registrado em',p)
           PY
           rm -rf $R/res/mipmap-anydpi-v26
           for d in mdpi hdpi xhdpi xxhdpi xxxhdpi; do cp icon-192.png $R/res/mipmap-$d/ic_launcher.png; cp icon-192.png $R/res/mipmap-$d/ic_launcher_round.png; done
