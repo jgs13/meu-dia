@@ -1,0 +1,4 @@
+MEU DIA — v2 (pacote plano para GitHub Pages)
+Todos os arquivos ficam na mesma pasta (sem subpastas):
+index.html, manifest.webmanifest, sw.js, icon-192.png, icon-512.png
+Suba todos na raiz do repositório e ative o GitHub Pages.

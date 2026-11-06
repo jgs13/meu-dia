@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#172c48"><link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="icon-192.png">
+<title>Meu Dia — Assistente Pessoal</title>
+<style>
+:root{--bg:#f3f5f8;--card:#fff;--ink:#172334;--muted:#697789;--accent:#24486d;--line:#e4e9ef;--good:#168451;--warn:#b7791f;--bad:#c0392b}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px system-ui,-apple-system,Segoe UI,sans-serif}
+header{background:#172c48;color:#fff;padding:22px max(18px,calc((100% - 1050px)/2));}
+header .small{color:#c6d5e6;font-size:12px;text-transform:uppercase;letter-spacing:.08em}h1{margin:4px 0;font-size:28px}header p{margin:0;color:#d7e2ef}
+main{max-width:1050px;margin:18px auto;padding:0 14px 40px}
+nav{display:flex;gap:8px;overflow:auto;padding:4px 0 14px}nav button{white-space:nowrap;border:1px solid var(--line);background:var(--card);padding:10px 14px;border-radius:12px;color:var(--ink);font-weight:650}
+nav button.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:0 3px 12px #182c4410;margin-bottom:14px}
+h2{font-size:18px;margin:0 0 12px}.muted{color:var(--muted);font-size:13px}.stat{font-size:30px;font-weight:750}.row{display:flex;gap:10px;align-items:center;justify-content:space-between}.stack{display:grid;gap:9px}
+input,select,textarea{width:100%;padding:11px;border:1px solid #ccd5df;border-radius:10px;background:#fff;color:#172334;font:inherit}label{font-size:13px;color:var(--muted);display:grid;gap:5px}
+form{display:grid;gap:10px}.fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+button.primary{background:var(--accent);color:#fff;border:0;border-radius:10px;padding:11px 14px;font-weight:700}button.secondary{background:#edf2f7;color:#23364a;border:1px solid var(--line);border-radius:10px;padding:9px 12px}
+button.danger{color:var(--bad);background:#fff1ef;border:1px solid #f4d0ca;border-radius:9px;padding:7px 10px}
+.item{border-top:1px solid var(--line);padding:11px 0;display:flex;gap:10px;align-items:center}.item:first-child{border-top:0}.item .grow{flex:1;min-width:0}.item.done .grow strong{text-decoration:line-through;color:var(--muted)}
+.pill{font-size:11px;padding:4px 8px;border-radius:99px;background:#edf2f7;color:#40536a}.pill.good{background:#e6f5ed;color:var(--good)}.pill.warn{background:#fff4df;color:var(--warn)}.pill.bad{background:#ffebe8;color:var(--bad)}
+.progress{height:9px;border-radius:99px;background:#e9edf2;overflow:hidden}.progress span{display:block;height:100%;background:#168451}
+.quote{font-size:18px;line-height:1.45;font-weight:650}.hidden{display:none!important}.empty{padding:18px;text-align:center;color:var(--muted)}
+small{color:var(--muted)}.bar{height:130px;display:flex;align-items:end;gap:8px;padding:12px 0 0}.bar div{flex:1;background:#8da9c5;border-radius:7px 7px 0 0;min-height:4px;position:relative}.bar span{position:absolute;bottom:-22px;left:0;right:0;text-align:center;font-size:11px;color:var(--muted)}
+footer{text-align:center;color:var(--muted);font-size:12px;padding:16px}
+@media(max-width:650px){.grid,.fields{grid-template-columns:1fr}.stat{font-size:26px}header{padding:18px}}
+</style></head>
+<body>
+<header><div class="small" id="today"></div><h1>Olá, Jardel!</h1><p>O que temos para fazer hoje?</p></header>
+<main>
+<nav id="nav">
+<button class="active" data-tab="inicio">Visão geral</button><button data-tab="tarefas">Tarefas</button><button data-tab="contas">Contas</button><button data-tab="alarmes">Alarmes</button><button data-tab="desempenho">Desempenho</button>
+</nav>
+<section id="inicio">
+<div class="grid">
+<div class="card"><div class="muted">Tarefas pendentes hoje</div><div class="stat" id="pendingCount">0</div><div class="muted">Organize seu dia sem esquecer.</div></div>
+<div class="card"><div class="muted">Contas em aberto</div><div class="stat" id="openBills">R$ 0,00</div><div class="muted">Total cadastrado e ainda não pago.</div></div>
+</div>
+<div class="card"><div class="row"><h2>Checklist de hoje</h2><button class="secondary" onclick="tab('tarefas')">Ver tarefas</button></div><div id="todayTasks"></div></div>
+<div class="card"><h2>Próximas contas</h2><div id="nextBills"></div></div>
+<div class="card"><h2>Versículo do dia</h2><div class="quote" id="verse"></div><div class="muted" id="reference" style="margin-top:8px"></div><small>Tradução/versículo em formato curto para reflexão diária.</small></div>
+</section>
+<section id="tarefas" class="hidden">
+<div class="card"><h2>Adicionar tarefa</h2><form id="taskForm"><div class="fields"><label>O que precisa fazer?<input name="title" required placeholder="Ex.: Tirar o lixo"></label><label>Data<input name="date" type="date" required></label><label>Horário (opcional)<input name="time" type="time"></label><label>Tempo estimado (minutos, opcional)<input name="duration" type="number" min="1" max="1440" placeholder="Ex.: 25"></label><label>Repetir<select name="repeat"><option value="none">Não repetir</option><option value="daily">Todos os dias</option><option value="weekly">Toda semana</option></select></label></div><button class="primary">Adicionar tarefa</button></form></div>
+<div class="card"><h2>Minhas tarefas</h2><div id="taskList"></div></div>
+<div class="card" id="timerCard"><div class="row"><h2>Cronômetro da tarefa</h2><span class="pill good">Com alerta sonoro</span></div><div id="timerDisplay" style="font-size:48px;font-weight:800;text-align:center;font-variant-numeric:tabular-nums;padding:12px 0">00:00</div><div id="timerTaskName" class="muted" style="text-align:center;margin-bottom:12px">Escolha uma tarefa com tempo definido.</div><div class="row" style="justify-content:center;flex-wrap:wrap"><button class="primary" id="timerStart">Iniciar</button><button class="secondary" id="timerPause">Pausar</button><button class="secondary" id="timerReset">Reiniciar</button></div><p class="muted" style="margin-top:12px">O cronômetro acompanha a tarefa escolhida. Ao terminar, toca um alerta enquanto a página estiver ativa. Para maior confiabilidade com o aplicativo fechado, será necessário o app Android nativo.</p></div>
+</section>
+<section id="contas" class="hidden">
+<div class="card"><h2>Cadastrar conta</h2><form id="billForm"><div class="fields"><label>Nome da conta<input name="title" required placeholder="Ex.: Energia"></label><label>Valor (R$)<input name="amount" type="number" min="0" step=".01" required placeholder="0,00"></label><label>Vencimento<input name="due" type="date" required></label><label>Categoria<input name="category" placeholder="Casa, água, internet..."></label><label style="grid-column:1/-1">PDF ou comprovante<input name="file" type="file" accept=".pdf,image/*"></label></div><button class="primary">Salvar conta</button></form><small>Os anexos ficam guardados neste navegador/dispositivo. Faça backup dos arquivos importantes.</small></div>
+<div class="card"><h2>Contas cadastradas</h2><div id="billList"></div></div>
+</section>
+<section id="alarmes" class="hidden">
+<div class="card"><h2>Novo alarme</h2><form id="alarmForm"><div class="fields"><label>Nome do alarme<input name="title" required placeholder="Ex.: Lembrar de tirar o lixo"></label><label>Horário<input name="time" type="time" required></label><label>Repetição<select name="repeat"><option value="once">Uma vez (hoje)</option><option value="daily">Todos os dias</option><option value="weekdays">Dias úteis</option><option value="weekly">Toda semana</option></select></label><label>Som<select name="sound"><option value="beep">Toque padrão</option><option value="strong">Toque insistente</option></select></label></div><button class="primary">Adicionar alarme</button></form><p class="muted">Importante: alarmes web dependem do navegador e da página aberta. O navegador pode suspender alarmes em segundo plano; não substituem o despertador nativo do Android.</p><button class="secondary" onclick="enableNotifications()">Ativar permissões de notificação</button></div>
+<div class="card"><h2>Meus alarmes</h2><div id="alarmList"></div></div>
+</section>
+<section id="desempenho" class="hidden">
+<div class="grid"><div class="card"><div class="muted">Eficiência nesta semana</div><div class="stat" id="weekRate">0%</div><div class="progress"><span id="weekBar" style="width:0%"></span></div></div><div class="card"><div class="muted">Eficiência neste mês</div><div class="stat" id="monthRate">0%</div><div class="progress"><span id="monthBar" style="width:0%"></span></div></div></div>
+<div class="card"><h2>Últimos 7 dias</h2><div class="bar" id="weekChart"></div><p class="muted">Eficiência = tarefas concluídas ÷ tarefas cadastradas para o período. Tarefas futuras não entram no cálculo.</p></div>
+<div class="card"><h2>Resumo</h2><div id="summary"></div></div>
+<div class="card"><h2>Backup dos dados</h2><p class="muted">Salve um arquivo com tarefas, contas, alarmes e anexos. Guarde no Drive ou envie para você mesmo.</p><div class="row" style="justify-content:flex-start;flex-wrap:wrap"><button class="primary" onclick="exportData()">Exportar backup</button><button class="secondary" onclick="$('#importFile').click()">Importar backup</button><input type="file" id="importFile" accept="application/json,.json" class="hidden"></div></div>
+</section>
+<footer>Meu Dia • Seus dados ficam neste dispositivo nesta primeira versão.</footer>
+</main>
+<script>
+const $=s=>document.querySelector(s), today=()=>new Date().toLocaleDateString('en-CA');
+const load=k=>{try{return JSON.parse(localStorage.getItem(k)||'[]')}catch(e){return []}}, save=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));return true}catch(e){alert('Não foi possível salvar: armazenamento cheio.');return false}};
+const DB={open(){return this._p||(this._p=new Promise((res,rej)=>{const r=indexedDB.open('meudia',1);r.onupgradeneeded=()=>r.result.createObjectStore('files');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}))},
+async put(k,v){const db=await this.open();return new Promise((res,rej)=>{const tx=db.transaction('files','readwrite');tx.objectStore('files').put(v,k);tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error)})},
+async get(k){const db=await this.open();return new Promise((res,rej)=>{const r=db.transaction('files').objectStore('files').get(k);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})},
+async del(k){const db=await this.open();return new Promise((res,rej)=>{const tx=db.transaction('files','readwrite');tx.objectStore('files').delete(k);tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error)})}};
+const blobToURL=b=>new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(b)});
+let tasks=load('md_tasks'), bills=load('md_bills'), alarms=load('md_alarms');
+const money=n=>Number(n||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const dateBR=s=>s?new Date(s+'T12:00:00').toLocaleDateString('pt-BR'):'';
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+$('#today').textContent=new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
+const verses=[
+['“O Senhor é o meu pastor; nada me faltará.”','Salmos 23:1'],
+['“Tudo posso naquele que me fortalece.”','Filipenses 4:13'],
+['“Confia no Senhor de todo o teu coração.”','Provérbios 3:5'],
+['“Entrega o teu caminho ao Senhor; confia nele, e ele tudo fará.”','Salmos 37:5'],
+['“Não temas, porque eu sou contigo.”','Isaías 41:10'],
+['“O Senhor é a minha luz e a minha salvação; a quem temerei?”','Salmos 27:1'],
+['“Buscai primeiro o Reino de Deus.”','Mateus 6:33']
+];
+let day=Math.floor(Date.now()/86400000);$('#verse').textContent=verses[day%verses.length][0];$('#reference').textContent=verses[day%verses.length][1];
+function tab(name){document.querySelectorAll('main section').forEach(s=>s.classList.add('hidden'));$('#'+name).classList.remove('hidden');document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));render()}
+window.tab=tab;$('#nav').addEventListener('click',e=>{let b=e.target.closest('button[data-tab]');if(b)tab(b.dataset.tab)});
+function taskRow(t){return `<div class="item ${t.done?'done':''}"><input style="width:auto" type="checkbox" ${t.done?'checked':''} onchange="toggleTask('${t.id}',this.checked)"><div class="grow"><strong>${esc(t.title)}</strong><div class="muted">${dateBR(t.date)} ${t.time||''} ${t.duration?'• '+t.duration+' min':''} ${t.repeat!=='none'?'• recorrente':''}</div></div>${t.duration?`<button class="secondary" onclick="selectTimer('${t.id}')">Cronometrar</button>`:''}<button class="danger" onclick="delTask('${t.id}')">Excluir</button></div>`}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+const nextDate=(d,r)=>{let x=new Date(d+'T12:00:00'),step=r==='daily'?1:7;do{x.setDate(x.getDate()+step)}while(x.toLocaleDateString('en-CA')<=today());return x.toLocaleDateString('en-CA')};
+window.toggleTask=(id,v)=>{let spawn=null;tasks=tasks.map(t=>{if(t.id!==id)return t;let n={...t,done:v,doneAt:v?today():null};if(v&&t.repeat&&t.repeat!=='none'&&!t.spawned){n.spawned=true;spawn={id:uid(),title:t.title,date:nextDate(t.date,t.repeat),time:t.time,duration:t.duration,repeat:t.repeat,done:false}}return n});if(spawn)tasks.push(spawn);save('md_tasks',tasks);render()};
+window.delTask=id=>{if(!confirm('Excluir esta tarefa?'))return;tasks=tasks.filter(t=>t.id!==id);save('md_tasks',tasks);render()};
+$('#taskForm').date.value=today();
+$('#taskForm').onsubmit=e=>{e.preventDefault();let f=new FormData(e.target);let t={id:uid(),title:f.get('title'),date:f.get('date'),time:f.get('time'),duration:Number(f.get('duration'))||0,repeat:f.get('repeat'),done:false};tasks.push(t);save('md_tasks',tasks);e.target.reset();e.target.date.value=today();render()};
+function billRow(b){let overdue=!b.paid&&b.due<today();return `<div class="item"><div class="grow"><strong>${esc(b.title)}</strong><div class="muted">${dateBR(b.due)} • ${money(b.amount)} ${b.category?'• '+esc(b.category):''}</div>${b.fileName?`<small>Anexo: ${esc(b.fileName)}</small>`:''}</div><span class="pill ${b.paid?'good':overdue?'bad':'warn'}">${b.paid?'Paga':overdue?'Atrasada':'Em aberto'}</span><div class="stack"><button class="secondary" onclick="payBill('${b.id}')">${b.paid?'Reabrir':'Pagar'}</button>${b.hasFile?`<button class="secondary" onclick="downloadBill('${b.id}')">Anexo</button>`:''}<button class="danger" onclick="delBill('${b.id}')">Excluir</button></div></div>`}
+$('#billForm').onsubmit=async e=>{e.preventDefault();let f=new FormData(e.target),file=f.get('file'),id=uid(),hasFile=false;if(file&&file.size){if(file.size>8*1024*1024){alert('Arquivo acima de 8 MB. Escolha um arquivo menor.');return}try{await DB.put(id,file);hasFile=true}catch(err){alert('Não foi possível guardar o anexo neste dispositivo.');return}}bills.push({id,title:f.get('title'),amount:Number(f.get('amount')),due:f.get('due'),category:f.get('category'),paid:false,fileName:hasFile?file.name:'',hasFile});save('md_bills',bills);e.target.reset();render()};
+window.payBill=id=>{bills=bills.map(b=>b.id===id?{...b,paid:!b.paid}:b);save('md_bills',bills);render()};
+window.delBill=id=>{if(!confirm('Excluir esta conta?'))return;bills=bills.filter(b=>b.id!==id);save('md_bills',bills);DB.del(id).catch(()=>{});render()};
+window.downloadBill=async id=>{let b=bills.find(x=>x.id===id);try{let blob=await DB.get(id);if(!blob){alert('Anexo não encontrado.');return}let u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=b.fileName||'comprovante';a.click();setTimeout(()=>URL.revokeObjectURL(u),10000)}catch(err){alert('Não foi possível abrir o anexo.')}};
+$('#alarmForm').onsubmit=e=>{e.preventDefault();let f=new FormData(e.target);alarms.push({id:uid(),title:f.get('title'),time:f.get('time'),repeat:f.get('repeat'),sound:f.get('sound'),enabled:true,last:'',created:today()});save('md_alarms',alarms);e.target.reset();render()};
+window.toggleAlarm=id=>{alarms=alarms.map(a=>a.id===id?{...a,enabled:!a.enabled}:a);save('md_alarms',alarms);render()};
+window.delAlarm=id=>{if(!confirm('Excluir este alarme?'))return;alarms=alarms.filter(a=>a.id!==id);save('md_alarms',alarms);render()};
+async function enableNotifications(){if(!('Notification'in window)){alert('Este navegador não oferece notificações.');return}let p=await Notification.requestPermission();alert(p==='granted'?'Notificações autorizadas. Mantenha o aplicativo aberto para verificar alarmes.':'Permissão não concedida.')}
+window.enableNotifications=enableNotifications;
+function alarmCheck(){let now=new Date(),d=today(),hm=now.toTimeString().slice(0,5),dow=now.getDay();alarms.forEach(a=>{let valid=a.repeat==='daily'||(a.repeat==='weekdays'&&dow>=1&&dow<=5)||(a.repeat==='weekly'&&dow===new Date((a.created||d)+'T12:00:00').getDay())||a.repeat==='once';if(a.enabled&&a.time===hm&&valid&&a.last!==d){a.last=d;if(a.repeat==='once')a.enabled=false;save('md_alarms',alarms);render();if('Notification'in window&&Notification.permission==='granted')new Notification('Meu Dia: '+a.title,{body:'Está na hora da sua tarefa!',tag:a.id});else alert('ALARME: '+a.title)}})}
+setInterval(alarmCheck,15000);
+function render(){
+let dueTasks=tasks.filter(t=>t.date===today()&&!t.done);$('#pendingCount').textContent=dueTasks.length;
+$('#openBills').textContent=money(bills.filter(b=>!b.paid).reduce((s,b)=>s+b.amount,0));
+$('#todayTasks').innerHTML=dueTasks.length?dueTasks.map(taskRow).join(''):'<div class="empty">Nenhuma tarefa pendente para hoje.</div>';
+let upcoming=bills.filter(b=>!b.paid).sort((a,b)=>a.due.localeCompare(b.due)).slice(0,5);$('#nextBills').innerHTML=upcoming.length?upcoming.map(billRow).join(''):'<div class="empty">Nenhuma conta em aberto.</div>';
+$('#taskList').innerHTML=tasks.length?tasks.slice().sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time)).map(taskRow).join(''):'<div class="empty">Adicione sua primeira tarefa.</div>';
+$('#billList').innerHTML=bills.length?bills.slice().sort((a,b)=>a.due.localeCompare(b.due)).map(billRow).join(''):'<div class="empty">Nenhuma conta cadastrada.</div>';
+$('#alarmList').innerHTML=alarms.length?alarms.map(a=>`<div class="item"><div class="grow"><strong>${esc(a.time)} — ${esc(a.title)}</strong><div class="muted">${({once:'Uma vez',daily:'Todos os dias',weekdays:'Dias úteis',weekly:'Semanal'})[a.repeat]} • ${a.sound==='strong'?'Toque insistente':'Toque padrão'}</div></div><span class="pill ${a.enabled?'good':''}">${a.enabled?'Ativo':'Pausado'}</span><button class="secondary" onclick="toggleAlarm('${a.id}')">${a.enabled?'Pausar':'Ativar'}</button><button class="danger" onclick="delAlarm('${a.id}')">Excluir</button></div>`).join(''):'<div class="empty">Nenhum alarme cadastrado.</div>';
+metrics();
+}
+function metrics(){let now=new Date(),start=new Date(now);start.setDate(now.getDate()-((now.getDay()+6)%7));start.setHours(0,0,0,0);let month=new Date(now.getFullYear(),now.getMonth(),1);
+const eligible=(from)=>tasks.filter(t=>new Date(t.date+'T12:00:00')>=from&&new Date(t.date+'T12:00:00')<=now);
+let w=eligible(start),m=eligible(month),rate=a=>a.length?Math.round(a.filter(t=>t.done).length/a.length*100):0;
+$('#weekRate').textContent=rate(w)+'%';$('#weekBar').style.width=rate(w)+'%';$('#monthRate').textContent=rate(m)+'%';$('#monthBar').style.width=rate(m)+'%';
+let days=[];for(let i=6;i>=0;i--){let d=new Date();d.setDate(d.getDate()-i);let key=d.toLocaleDateString('en-CA');let a=tasks.filter(t=>t.date===key),r=rate(a);days.push({label:['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'][d.getDay()],r,n:a.length})}
+$('#weekChart').innerHTML=days.map(x=>`<div style="height:${Math.max(4,x.r)}%" title="${x.r}%"><span>${x.label}</span></div>`).join('');
+$('#summary').innerHTML=`<div class="item"><div class="grow">Tarefas concluídas neste mês</div><strong>${m.filter(t=>t.done).length}</strong></div><div class="item"><div class="grow">Tarefas atrasadas e pendentes</div><strong>${tasks.filter(t=>!t.done&&t.date<today()).length}</strong></div><div class="item"><div class="grow">Contas pagas</div><strong>${bills.filter(b=>b.paid).length}</strong></div>`}
+// Cronômetro vinculado às tarefas com duração opcional.
+let timerState = JSON.parse(localStorage.getItem('md_timer') || 'null');
+let timerInterval = null;
+let audioContext = null;
+function saveTimer(){localStorage.setItem('md_timer',JSON.stringify(timerState));}
+function selectedTimerTask(){return timerState ? tasks.find(t=>t.id===timerState.taskId) : null;}
+function timerRemaining(){
+  if(!timerState) return 0;
+  if(timerState.running) return Math.max(0, timerState.endsAt-Date.now());
+  return Math.max(0, timerState.remainingMs||0);
+}
+function formatTimer(ms){let s=Math.ceil(ms/1000),m=Math.floor(s/60),r=s%60;return String(m).padStart(2,'0')+':'+String(r).padStart(2,'0')}
+function drawTimer(){
+  let remain=timerRemaining(), task=selectedTimerTask();
+  $('#timerDisplay').textContent=formatTimer(remain);
+  $('#timerTaskName').textContent=task ? task.title+(task.duration?' • '+task.duration+' minutos':'') : 'Escolha uma tarefa com tempo definido.';
+  $('#timerStart').disabled=!timerState||timerState.running||remain<=0;
+  $('#timerPause').disabled=!timerState||!timerState.running;
+  $('#timerReset').disabled=!timerState;
+}
+function selectTimer(id){
+  let t=tasks.find(x=>x.id===id); if(!t||!t.duration)return;
+  if(timerInterval){clearInterval(timerInterval);timerInterval=null}
+  timerState={taskId:id,remainingMs:t.duration*60000,running:false,endsAt:null,finished:false};
+  saveTimer();drawTimer();document.getElementById('timerCard').scrollIntoView({behavior:'smooth',block:'center'});
+}
+window.selectTimer=selectTimer;
+function timerBeep(){
+  try{
+    audioContext=audioContext||new (window.AudioContext||window.webkitAudioContext)();
+    if(audioContext.state==='suspended')audioContext.resume();
+    let start=audioContext.currentTime;
+    [0,0.35,0.7].forEach((offset,i)=>{
+      let osc=audioContext.createOscillator(),gain=audioContext.createGain();
+      osc.type='sine';osc.frequency.value=i===1?880:660;
+      gain.gain.setValueAtTime(0.0001,start+offset);
+      gain.gain.exponentialRampToValueAtTime(0.45,start+offset+0.025);
+      gain.gain.exponentialRampToValueAtTime(0.0001,start+offset+0.23);
+      osc.connect(gain);gain.connect(audioContext.destination);
+      osc.start(start+offset);osc.stop(start+offset+0.25);
+    });
+  }catch(e){}
+  if('Notification'in window&&Notification.permission==='granted')new Notification('Meu Dia — tempo encerrado',{body:'O tempo da atividade terminou.'});
+}
+function finishTimer(){
+  if(!timerState||timerState.finished)return;
+  timerState.running=false;timerState.remainingMs=0;timerState.endsAt=null;timerState.finished=true;saveTimer();drawTimer();timerBeep();
+  if(timerInterval){clearInterval(timerInterval);timerInterval=null}
+}
+$('#timerStart').addEventListener('click',()=>{
+  if(!timerState||timerState.running||timerRemaining()<=0)return;
+  timerState.running=true;timerState.finished=false;timerState.endsAt=Date.now()+timerState.remainingMs;saveTimer();
+  if(timerInterval)clearInterval(timerInterval);
+  timerInterval=setInterval(()=>{if(timerRemaining()<=0)finishTimer();else drawTimer()},250);drawTimer();
+});
+$('#timerPause').addEventListener('click',()=>{
+  if(!timerState||!timerState.running)return;
+  timerState.remainingMs=timerRemaining();timerState.running=false;timerState.endsAt=null;saveTimer();
+  if(timerInterval){clearInterval(timerInterval);timerInterval=null}drawTimer();
+});
+$('#timerReset').addEventListener('click',()=>{
+  if(!timerState)return;let t=selectedTimerTask();
+  timerState.remainingMs=(t?.duration||0)*60000;timerState.running=false;timerState.endsAt=null;timerState.finished=false;saveTimer();
+  if(timerInterval){clearInterval(timerInterval);timerInterval=null}drawTimer();
+});
+if(timerState&&timerState.running){
+  if(timerRemaining()<=0)finishTimer();
+  else timerInterval=setInterval(()=>{if(timerRemaining()<=0)finishTimer();else drawTimer()},250);
+}
+drawTimer();
+
+window.exportData=async()=>{try{let out=bills.map(b=>({...b}));for(let b of out){if(b.hasFile){let blob=await DB.get(b.id);b.fileData=blob?await blobToURL(blob):null}}
+let data={app:'meu-dia',version:2,exportedAt:new Date().toISOString(),tasks,bills:out,alarms};
+let u=URL.createObjectURL(new Blob([JSON.stringify(data)],{type:'application/json'})),a=document.createElement('a');a.href=u;a.download='meu-dia-backup-'+today()+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(u),10000)}catch(err){alert('Não foi possível exportar o backup.')}};
+$('#importFile').addEventListener('change',async e=>{let file=e.target.files[0];e.target.value='';if(!file)return;try{let d=JSON.parse(await file.text());if(d.app!=='meu-dia'||!Array.isArray(d.tasks)||!Array.isArray(d.bills)||!Array.isArray(d.alarms))throw 0;
+if(!confirm('Importar vai substituir os dados atuais deste aparelho. Continuar?'))return;
+for(let b of d.bills){if(b.fileData){let blob=await (await fetch(b.fileData)).blob();await DB.put(b.id,blob);b.hasFile=true}delete b.fileData}
+tasks=d.tasks;bills=d.bills;alarms=d.alarms;save('md_tasks',tasks);save('md_bills',bills);save('md_alarms',alarms);render();alert('Backup importado com sucesso.')}catch(err){alert('Arquivo de backup inválido.')}});
+// Migração: anexos antigos (base64 no localStorage) -> IndexedDB; alarmes sem data de criação
+(async()=>{let changed=false;for(let b of bills){if(b.fileData){try{let blob=await (await fetch(b.fileData)).blob();await DB.put(b.id,blob);b.hasFile=true;delete b.fileData;changed=true}catch(e){}}}
+if(changed){save('md_bills',bills);render()}})();
+if(alarms.some(a=>!a.created)){alarms.forEach(a=>{if(!a.created)a.created=today()});save('md_alarms',alarms)}
+if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
+render();
+if('serviceWorker'in navigator && location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});
+</script></body></html>
